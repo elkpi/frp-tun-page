@@ -16,3 +16,12 @@ private_key = "REPLACE_WITH_PRIVATE_KEY"
 ```
 
 部署前确认运行账户拥有所需网络管理能力，并备份当前 `ip rule`、路由表与 nftables 规则。任何升级均应在维护窗口执行，并准备独立的手工回退路径。
+
+## 架构与二进制选型
+
+在 OpenWrt 路由器上部署时，请根据硬件 CPU 架构前往 [发行说明](/releases/v0.5.1/) 获取对应的预编译二进制：
+
+- **32 位 ARM 路由器 (armv7 / armv7l)**：获取 `frp-tun_v0.5.1_arm`（分发包亦包含 `frp-tun_arm`、`frp-tun_armv7` 兼容软链接，UPX 压缩后约 3.2MB，适用于常见 32 位 ARMv7 路由器网关）；
+- **64 位 ARM 路由器 (arm64 / aarch64)**：获取 `frp-tun_v0.5.1_arm64`；
+- **MIPS / MIPSLE 路由器**：获取 `frp-tun_v0.5.1_mips-softfloat` 或 `frp-tun_v0.5.1_mipsle-softfloat`；
+- **x86_64 软路由**：获取 `frp-tun_v0.5.1_amd64`。

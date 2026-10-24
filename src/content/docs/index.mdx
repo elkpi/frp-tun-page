@@ -24,6 +24,16 @@ frp-tun 面向同时管理 Linux 或 OpenWrt 网关、WireGuard overlay 与 frp 
 
 部署前请确认你能维护 root/CAP_NET_ADMIN 权限、策略路由、nftables 与独立的回退流程。未完成硬件和公网验证的平台会明确保持“实验性”状态。
 
+## 多架构二进制选项
+
+官方提供原生预编译的 Linux 二进制包（经 UPX 高比例压缩，体积约 3.1MB ~ 3.8MB），覆盖主流硬件：
+- **Linux amd64**：x86_64 服务器与软路由；
+- **Linux arm64**：64 位 aarch64 树莓派、现代 ARM 路由器与 NAS；
+- **Linux arm**：32 位 ARM (armv7) 常见嵌入式路由器与边缘网关（体积约 3.2MB，提供 `frp-tun_arm`、`frp-tun_armv7` 兼容软链接）；
+- **Linux mips / mipsle**：传统大端/小端 MIPS 架构无线路由器。
+
+各架构二进制下载与 SHA256 校验清单请前往 [发行说明](/releases/v0.5.1/)。
+
 ## 当前可查阅内容
 
 - [项目概览](/getting-started/)：产品范围、预览限制与准备条件；

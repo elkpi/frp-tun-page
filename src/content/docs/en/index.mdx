@@ -19,3 +19,13 @@ hero:
 </div>
 
 frp-tun encrypts traffic locally with WireGuard before a carrier transports it over a preferred P2P path or an STCP fallback. Read the [getting-started guide](/en/getting-started/) before evaluating a deployment.
+
+## Multi-Architecture Binary Options
+
+Native precompiled Linux binaries (UPX-compressed to 3.1MB–3.8MB) are provided for common hardware platforms:
+- **Linux amd64**: x86_64 servers and soft routers;
+- **Linux arm64**: 64-bit aarch64 Raspberry Pi, modern ARM routers, and NAS devices;
+- **Linux arm**: 32-bit ARM (armv7) embedded routers and edge gateways (~3.2MB, provides `frp-tun_arm` and `frp-tun_armv7` compatibility download symlinks);
+- **Linux mips / mipsle**: Big-endian and little-endian MIPS wireless routers.
+
+Download links and SHA256 checksums are documented in [Release Notes](/en/releases/v0.5.1/).
