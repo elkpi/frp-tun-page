@@ -1,0 +1,18 @@
+---
+title: 项目概览
+description: 了解 frp-tun 的适用范围、技术预览状态与部署前提。
+version: preview
+---
+
+> **适用版本：技术预览。** 当前没有公开二进制包，也没有自动更新或支持时限承诺。
+
+frp-tun 是一个闭源站点到站点网关。它把 WireGuard overlay 与 frp signalling/carrier 分开：前者负责端到端加密，后者只承载已经加密的 UDP 数据报。
+
+## 部署前提
+
+- 两端都有可控的 Linux 或 OpenWrt 网关；
+- 运维者能够审查策略路由、nftables 与接口恢复行为；
+- 可以在维护窗口中手动升级并回退；
+- 不将 WireGuard 私钥、frp token、内部地址或拓扑发布到公开支持渠道。
+
+继续阅读 [架构概览](/architecture/) 和 [安全边界](/security/)。

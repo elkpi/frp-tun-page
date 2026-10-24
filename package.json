@@ -1,0 +1,31 @@
+{
+  "name": "frp-tun-page",
+  "version": "0.0.0-private-preview",
+  "private": true,
+  "type": "module",
+  "description": "The static preview documentation and release site for frp-tun.",
+  "engines": {
+    "node": ">=22.23.4 <25",
+    "npm": ">=9.6.5"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "check": "astro check",
+    "test": "node --test",
+    "diagrams": "node scripts/build-diagrams.mjs",
+    "validate:content": "node scripts/validate-public-content.mjs",
+    "validate:releases": "node scripts/validate-release-metadata.mjs",
+    "prebuild": "npm run diagrams && npm run validate:content && npm run validate:releases",
+    "build": "astro build"
+  },
+  "devDependencies": {
+    "@astrojs/starlight": "^0.42.6",
+    "@mermaid-js/mermaid-cli": "^12.0.0",
+    "astro": "^7.4.2",
+    "typescript": "^5.9.3",
+    "yauzl": "^3.4.0"
+  },
+  "allowScripts": {
+    "puppeteer@25.16.0": true
+  }
+}

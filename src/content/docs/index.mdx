@@ -1,0 +1,33 @@
+---
+title: frp-tun
+slug: /
+template: splash
+hero:
+  title: frp-tun
+  tagline: 将 frp 传输信令、WireGuard 加密与 Linux/OpenWrt 策略路由整合为站点到站点网关。
+  actions:
+    - text: 了解预览边界
+      link: /getting-started/
+      icon: right-arrow
+    - text: 查看安全边界
+      link: /security/
+      variant: minimal
+---
+
+<div className="preview-notice">
+  <strong>技术预览，尚未公开发行。</strong> frp-tun 为闭源软件；当前站点不提供二进制下载、不承诺平台支持，也不包含自动更新。只有通过可复现验证的结论才会标注为“已验证”。
+</div>
+
+## 先判断是否适合部署
+
+frp-tun 面向同时管理 Linux 或 OpenWrt 网关、WireGuard overlay 与 frp underlay 的运维者。WireGuard 数据包先在本地加密，再交由优先的 P2P 路径或受控的 STCP 回退路径承载。
+
+部署前请确认你能维护 root/CAP_NET_ADMIN 权限、策略路由、nftables 与独立的回退流程。未完成硬件和公网验证的平台会明确保持“实验性”状态。
+
+## 当前可查阅内容
+
+- [项目概览](/getting-started/)：产品范围、预览限制与准备条件；
+- [架构概览](/architecture/)：WireGuard、P2P、STCP 与策略路由的边界；
+- [配置示例](/configuration/)：只含不可用占位符和文档保留地址；
+- [安全边界](/security/)：敏感信息、验证证据和安全报告规则；
+- [发行说明](/releases/)：未来 preview 版本的证据驱动模板。

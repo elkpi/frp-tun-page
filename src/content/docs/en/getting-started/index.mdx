@@ -1,0 +1,11 @@
+---
+title: Getting started
+description: Scope, preview status, and prerequisites for evaluating frp-tun.
+version: preview
+---
+
+> **Applicable version: technical preview.** No public binary, automatic update channel, or support SLA is available.
+
+frp-tun is a closed-source site-to-site gateway. WireGuard encrypts the overlay locally; frp signalling and carriers only transport already encrypted UDP datagrams.
+
+Before deployment, operators need managed Linux or OpenWrt gateways, the ability to audit policy routing and nftables, and a tested manual rollback path. Never submit private keys, frp credentials, internal addresses, or topology details to public support channels.
