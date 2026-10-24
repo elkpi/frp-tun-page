@@ -1,0 +1,9 @@
+---
+title: Architecture
+description: WireGuard overlay, frp carrier, and routing isolation boundaries.
+version: preview
+---
+
+> **Applicable version: technical preview.** P2P reachability, OpenWrt hardware, non-zero `SO_MARK`, long-running load, WAN/netem, and public NAT traversal are not universal support claims.
+
+WireGuard encrypts locally before a bridge forwards datagrams to a carrier. The carrier prefers a direct P2P path and may fall back to STCP without exposing application plaintext.

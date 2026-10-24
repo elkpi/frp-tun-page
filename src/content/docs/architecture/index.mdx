@@ -1,0 +1,13 @@
+---
+title: 架构概览
+description: WireGuard overlay、frp carrier 与策略路由的职责边界。
+version: preview
+---
+
+> **适用版本：技术预览。** 下列设计描述不等同于所有 Linux/OpenWrt 硬件、WAN 或 NAT 环境已经验证。
+
+frp-tun 将数据面与传输控制面分离：WireGuard 在本地 loopback 端口完成加密，Bridge pump 只转发加密后的 UDP 数据报，carrier 再选择可用的 P2P 或 STCP 路径。
+
+- [P2P 优先与 STCP 回退](/architecture/direct-fallback/)；
+- [双站点网关](/architecture/two-site-gateway/)；
+- [私有中继 Hub-and-Spoke](/architecture/private-relay/)。

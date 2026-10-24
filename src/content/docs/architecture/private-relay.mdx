@@ -1,0 +1,11 @@
+---
+title: 私有中继 Hub-and-Spoke
+description: 多站点在无法直连时经私有 STCP Hub 回退。
+version: preview
+---
+
+> **适用版本：技术预览。** 私有 Hub 的容量、故障域与多站点恢复行为需由部署者验证；它们目前仍属于实验性范围。
+
+![三个 frp-tun 站点在可用时两两优先直连，在 P2P 不可达时通过私有 frps/STCP Hub 承载加密数据。](/images/diagrams/private-relay-hub-spoke.svg)
+
+Hub 不终止 WireGuard 加密，也不应成为站点业务网段的路由器。它只作为 carrier 的受控回退点。对 Hub 使用独立凭据、最小网络权限和明确的容量/故障监控策略。

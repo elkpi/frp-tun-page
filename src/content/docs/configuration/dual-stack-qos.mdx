@@ -1,0 +1,21 @@
+---
+title: 双栈与 QoS
+description: IPv4/IPv6 偏好与 QoS 字段的预览配置边界。
+version: preview
+---
+
+> **适用版本：技术预览。** 本站不提供二进制下载；QoS 与双栈行为需要结合目标版本和本地网络验证。
+
+```toml
+[transport]
+prefer_ipv4 = true
+fallback_ipv6_endpoint = "[2001:db8::20]:7000"
+
+[qos]
+dscp = "REPLACE_WITH_DSCP_POLICY"
+
+[frp]
+shared_secret = "REPLACE_WITH_SHARED_SECRET"
+```
+
+IPv4 默认优先不代表禁用 IPv6。必须在每个站点分别确认 DNS、NAT、防火墙、MTU 和上游路由行为。不要把实际 ISP 地址、内部前缀或共享秘密复制进示例。

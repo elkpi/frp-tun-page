@@ -1,0 +1,11 @@
+---
+title: 双站点网关
+description: 两个 Linux/OpenWrt 网关上的 overlay、underlay 与策略路由位置。
+version: preview
+---
+
+> **适用版本：技术预览。** 非零 `SO_MARK`、物理 OpenWrt 设备与长期负载的完整行为仍为待验证/实验性结论。
+
+![站点 A 与站点 B 的 LAN 分别经过策略路由、WireGuard 接口和 Bridge carrier；两端 carrier 使用优先 P2P 与 STCP 回退承载。](/images/diagrams/two-site-gateway.svg)
+
+隔离规则先于接口相关路由建立，目的是在恢复过程中避免未加密流量泄漏。每个站点拥有独立的路由表、rule priority、mark 与接口归属标识。配置和升级时请先审查本机已有策略路由，不要覆盖不属于 frp-tun 的规则。

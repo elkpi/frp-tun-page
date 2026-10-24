@@ -1,0 +1,13 @@
+---
+title: P2P 优先与 STCP 回退
+description: 加密数据如何在优先直连与中继回退之间承载。
+version: preview
+---
+
+> **适用版本：技术预览。** XTCP/QUIC P2P 可用性受 NAT、CGNAT、防火墙与 frps 配置影响；公网穿透结果仍属待验证范围。
+
+![两端 WireGuard 先加密，carrier 优先通过 XTCP/QUIC P2P 直连；P2P 不可用时，经受控 STCP relay 转发密文。](/images/diagrams/direct-fallback.svg)
+
+WireGuard 在数据离开本机前加密。Bridge pump 不解释 IP payload，只在本地 WireGuard socket 与活动 carrier 之间泵送数据报。因此 STCP 回退承载的是 WireGuard 密文，而不是明文业务流量。
+
+“P2P 优先”是路径选择策略，不是可达性保证。运维者需要保留可审计的 STCP 回退配置，并在自己的网络中验证连接恢复行为。

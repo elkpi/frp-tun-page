@@ -1,0 +1,25 @@
+---
+title: 最小双站点配置
+description: 用于阅读配置结构的安全占位符示例。
+version: preview
+---
+
+> **适用版本：技术预览。** 本站不提供二进制下载；示例不能直接连接真实网络。
+
+站点 A 与站点 B 都需要独立的 WireGuard 密钥、overlay 地址与 frp 身份。下面仅展示字段边界：
+
+```toml
+[site]
+name = "site-a-example"
+endpoint = "relay.example.com:7000"
+
+[wireguard]
+private_key = "REPLACE_WITH_PRIVATE_KEY"
+peer_public_key = "REPLACE_WITH_PEER_PUBLIC_KEY"
+address = "198.51.100.10/32"
+
+[frp]
+token = "REPLACE_WITH_FRP_TOKEN"
+```
+
+将每个 `REPLACE_WITH_*` 值替换为站点专用的受控秘密，并把秘密保存在权限正确的本地文件或秘密管理系统中。不要将其内联到公开仓库。

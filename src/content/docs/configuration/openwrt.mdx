@@ -1,0 +1,18 @@
+---
+title: OpenWrt 注意事项
+description: OpenWrt 网关部署前需审查的权限、路由与防火墙边界。
+version: preview
+---
+
+> **适用版本：技术预览。** 本站不提供二进制下载；OpenWrt 硬件、非零 `SO_MARK` 与长期负载仍未作为通用支持结论发布。
+
+```toml
+[openwrt]
+interface_alias = "frp-tun:REPLACE_WITH_SITE_ID"
+config_path = "/etc/frp-tun/REPLACE_WITH_CONFIG_NAME.toml"
+
+[wireguard]
+private_key = "REPLACE_WITH_PRIVATE_KEY"
+```
+
+部署前确认运行账户拥有所需网络管理能力，并备份当前 `ip rule`、路由表与 nftables 规则。任何升级均应在维护窗口执行，并准备独立的手工回退路径。

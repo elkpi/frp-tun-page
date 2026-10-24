@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const root = fileURLToPath(new URL('../', import.meta.url));
+const architecturePages = [
+  ['architecture/direct-fallback.mdx', 'direct-fallback.svg'],
+  ['architecture/two-site-gateway.mdx', 'two-site-gateway.svg'],
+  ['architecture/private-relay.mdx', 'private-relay-hub-spoke.svg'],
+];
+const configurationPages = [
+  'configuration/minimal-two-site.mdx',
+  'configuration/dual-stack-qos.mdx',
+  'configuration/openwrt.mdx',
+];
+
+for (const [page, diagram] of architecturePages) {
+  test(`${page} explains its local topology diagram`, () => {
+    const pagePath = path.join(root, 'src/content/docs', page);
+    assert.equal(existsSync(pagePath), true, `${page} must exist`);
+
+    const content = readFileSync(pagePath, 'utf8');
+    assert.match(content, new RegExp(`!\\[[^\\]]+\\]\\([^)]*${diagram}\\)`));
+    assert.match(content, /适用版本：技术预览/);
+    assert.match(content, /实验性|待验证/);
+  });
+}
+
+for (const page of configurationPages) {
+  test(`${page} preserves preview and safe-example boundaries`, () => {
+    const pagePath = path.join(root, 'src/content/docs', page);
+    assert.equal(existsSync(pagePath), true, `${page} must exist`);
+
+    const content = readFileSync(pagePath, 'utf8');
+    assert.match(content, /适用版本：技术预览/);
+    assert.match(content, /不提供.*下载|不提供.*二进制/);
+    assert.match(content, /REPLACE_WITH_/);
+  });
+}
+
+test('English architecture, configuration, and security entry points exist', () => {
+  for (const page of ['en/architecture/index.mdx', 'en/configuration/index.mdx', 'en/security/index.mdx']) {
+    assert.equal(existsSync(path.join(root, 'src/content/docs', page)), true, `${page} must exist`);
+  }
+});
