@@ -40,6 +40,8 @@ const nonHostnameSuffixes = new Set([
   'yaml',
   'yml',
   'txt',
+  'sock',
+  'key',
   'qos',
   'ipv6',
   'server_port',

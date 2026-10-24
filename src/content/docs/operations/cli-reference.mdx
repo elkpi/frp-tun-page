@@ -1,0 +1,208 @@
+---
+title: CLI 命令行参数说明
+description: frp-tun 命令行工具语法、子命令详解、控制套接字参数与退出状态码规范。
+version: preview
+---
+
+> **适用版本：技术预览。** 涉及底层网络接口与策略路由的命令需要 `root` 权限或拥有 `CAP_NET_ADMIN` 权限能力。
+
+`frp-tun` 提供了完备的命令行子命令体系，涵盖配置静态预检、密钥管理、守护进程服务运行、在线状态监控及离线资源清理。
+
+---
+
+## 1. 语法结构
+
+```bash
+frp-tun <command> [options]
+```
+
+### 全局参数
+
+- `-h`, `--help`, `help`: 打印命令行全局使用说明或指定子命令的帮助信息。
+- `-v`, `--version`, `version`: 查看当前可执行文件的构建版本号。
+
+### 默认控制套接字路径
+
+`frp-tun` 守护进程与控制客户端默认使用 UNIX Domain Socket 进行本地进程间通信：
+- **默认 Socket 路径**：`/var/run/frp-tun.sock`（在现代 systemd 发行版中自动对应 `/run/frp-tun.sock`）；
+- **访问控制**：守护进程以限制权限创建该套接字文件，执行客户端控制命令时需具备对应套接字的读写权限；
+- **参数覆盖**：所有涉及实例交互的子命令均可通过 `--socket <path>` 参数指定自定义控制套接字路径。
+
+---
+
+## 2. 子命令详解
+
+### 2.1 check（配置预检与冲突检测）
+
+解析指定的配置文件，执行语法校验与宿主网络资源冲突检测。此命令为**只读检查**，不会对操作系统网络栈产生任何副作用。
+
+```bash
+frp-tun check [-c /path/to/config.toml]
+```
+
+- `-c`, `--config <path>`: 配置文件路径，缺省时默认为 `/etc/frp-tun/config.toml`。
+
+**检查项目包括**：
+1. TOML 语法结构与参数合法性；
+2. 本地策略路由表（Routing Tables）与规则优先级（Rule Priorities）是否存在未授权重叠；
+3. 本地 Linux 内核转发开关（`net.ipv4.ip_forward`）状态；
+4. 接口命名与 IP 前缀冲突。
+
+---
+
+### 2.2 init（站点身份初始化与导入）
+
+初始化本站的身份凭证存储，生成新的非对称私钥，或从已有的私钥材料中导入。
+
+```bash
+frp-tun init [--dir /etc/frp-tun] [--import /path/to/private.key]
+```
+
+- `--dir <path>`: 身份存储目录，默认为 `/etc/frp-tun`。
+- `--import <file>`: 可选，从现有的私钥文件导入本站身份。
+
+**输出示例**：
+```text
+Public Key: 2/EXAMPLE_KEY_MATERIAL_BASE64_FOR_DOCS_ONLY=
+Fingerprint: SHA256:EXAMPLE_DOC_FINGERPRINT_HASH_ONLY_NOT_REAL
+```
+
+---
+
+### 2.3 export（对端声明导出）
+
+根据当前站点的配置文件和身份私钥，导出供对端节点导入的声明数据。输出格式为标准 JSON。
+
+```bash
+frp-tun export [-c /path/to/config.toml]
+```
+
+- `-c`, `--config <path>`: 配置文件路径，默认为 `/etc/frp-tun/config.toml`。
+
+> **安全保证**：`export` 仅输出站点 ID、公钥（Public Key）、宣告网段及协议参数，**严格杜绝私钥导出**，可安全通过不可信渠道分发给对端管理员。
+
+---
+
+### 2.4 import（对端声明强校验导入）
+
+导入由对端站点导出的声明文件，并强制校验公钥指纹。只有指纹匹配时才会将对端录入信任库。
+
+```bash
+frp-tun import --declaration <file> --fingerprint <hash>
+```
+
+- `--declaration <file>`: **必填**，对端导出的声明 JSON 文件路径。
+- `--fingerprint <hash>`: **必填**，预期对端公钥的 SHA256 指纹。
+
+---
+
+### 2.5 run（前台运行网关守护进程）
+
+拉起 `frp-tun` 网关核心服务。启动时优先执行崩溃恢复（Restore），完成双平面隔离保护建立、WireGuard Overlay 初始化、Bridge 数据泵挂载，并开启 UNIX 域控制套接字。
+
+```bash
+frp-tun run [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
+```
+
+- `-c`, `--config <path>`: 配置文件路径，默认为 `/etc/frp-tun/config.toml`。
+- `--socket <path>`: 控制套接字监听路径，默认为 `/var/run/frp-tun.sock`。
+
+**运行生命周期**：
+- 支持接收 `SIGINT`（Ctrl+C）或 `SIGTERM` 信号。收到信号后将优雅停机（Graceful Shutdown），解除网络接口绑定，保留网络黑洞防护状态。
+
+---
+
+### 2.6 status（运行实例状态查询）
+
+通过 UNIX 控制套接字向正在运行的守护进程发送查询请求，获取实时运行状态。
+
+```bash
+frp-tun status [--socket /var/run/frp-tun.sock]
+```
+
+- `--socket <path>`: 运行中实例的控制套接字路径，默认为 `/var/run/frp-tun.sock`。
+
+**输出内容**：
+- 以结构化 JSON 格式返回，包含：节点链路模式（P2P 直连 / STCP 中继）、各对端心跳延迟、WireGuard 接口收发字节数与网络丢包统计（所有敏感密钥信息在输出前均经自动脱敏处理）。
+
+---
+
+### 2.7 doctor（运行环境巡检）
+
+快速诊断宿主机系统环境的前置依赖，排查潜在运行障碍。
+
+```bash
+frp-tun doctor [-c /path/to/config.toml]
+```
+
+- `-c`, `--config <path>`: 配置文件路径，默认为 `/etc/frp-tun/config.toml`。
+
+**巡检项目**：
+- `[OK] /dev/net/tun available`: 字符设备文件及其权限状态；
+- `[OK] configuration parsed and validated`: 配置文件格式正确性；
+- `[OK] site identity key ready`: 本机身份私钥就绪情况；
+- `[OK] IPv4 forwarding authorized`: 系统内核数据包转发参数合规性。
+
+---
+
+### 2.8 apply（配置热重载）
+
+在不中断现有隧道连接和数据转发的前提下，向运行中的守护进程动态加载新的配置规则。
+
+```bash
+frp-tun apply [-c /path/to/new_config.toml] [--socket /var/run/frp-tun.sock]
+```
+
+- `-c`, `--config <path>`: 新的配置文件路径，默认为 `/etc/frp-tun/config.toml`。
+- `--socket <path>`: 目标运行实例控制套接字路径，默认为 `/var/run/frp-tun.sock`。
+
+---
+
+### 2.9 down（停机并清理网络资源）
+
+停止守护进程并**彻底清理**本站占用的全部网络资源（包括 WireGuard 虚拟接口、策略路由表、ip rule 优先级规则与隔离防护规则）。
+
+```bash
+frp-tun down [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
+```
+
+- `-c`, `--config <path>`: 配置文件路径（离线恢复时必选），默认为 `/etc/frp-tun/config.toml`。
+- `--socket <path>`: 控制套接字路径。若守护进程正在运行，将优先通过 socket 触发主动销毁；若进程已异常终止，将基于配置文件执行离线幂等清理。
+
+---
+
+### 2.10 forget-prefix（注销退役 IPv6 前缀）
+
+从持久化退役黑洞保护列表中注销指定的 IPv6 前缀，解除针对该网段的黑洞路由保护。
+
+```bash
+frp-tun forget-prefix --prefix <cidr> [--socket /var/run/frp-tun.sock]
+```
+
+- `--prefix <cidr>`: **必填**，需注销的 IPv6 前缀（例如 `2001:db8:1::/64`）。
+- `--socket <path>`: 控制套接字路径，默认为 `/var/run/frp-tun.sock`。
+
+---
+
+### 2.11 disable-ipv6（禁用 IPv6 保护）
+
+动态通知运行中实例彻底禁用 IPv6 相关的所有策略路由、黑洞保护与中继转发。
+
+```bash
+frp-tun disable-ipv6 [--socket /var/run/frp-tun.sock]
+```
+
+- `--socket <path>`: 控制套接字路径，默认为 `/var/run/frp-tun.sock`。
+
+---
+
+## 3. 标准退出状态码（Exit Codes）
+
+在脚本编写与 systemd 服务单元管理中，`frp-tun` 遵循统一的语义化退出码规范：
+
+| 退出码 | 类别 | 说明 |
+| :--- | :--- | :--- |
+| `0` | **Success** | 命令执行成功完成。 |
+| `2` | **Usage / Config Error** | 命令行参数缺失、选项非法，或配置文件语法校验失败。 |
+| `3` | **Prerequisite Failure** | 操作系统环境前置条件未满足（例如缺少 TUN 设备访问权限、策略路由产生严重冲突）。 |
+| `4` | **Runtime Failure** | 守护进程启动异常、核心组件初始化失败或控制套接字通信超时。 |

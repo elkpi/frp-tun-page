@@ -37,6 +37,7 @@ export default defineConfig({
         {
           label: '运行与安全',
           items: [
+            { label: 'CLI 命令参考', slug: 'operations/cli-reference' },
             { label: '运维与回退', slug: 'operations/upgrade-rollback' },
             { label: '故障排查', slug: 'operations/troubleshooting' },
             { label: '安全边界与准则', slug: 'security' },

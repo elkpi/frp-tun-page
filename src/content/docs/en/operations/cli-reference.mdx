@@ -1,0 +1,182 @@
+---
+title: CLI Reference
+description: Command-line interface syntax, subcommands, control socket flags, and exit code specifications for frp-tun.
+version: preview
+---
+
+> **Applicable version: technical preview.** Commands that manipulate network interfaces and policy routing tables require `root` or `CAP_NET_ADMIN` privileges.
+
+`frp-tun` provides a command-line interface covering static configuration validation, identity management, daemon operations, runtime queries, and resource cleanup.
+
+---
+
+## 1. Syntax
+
+```bash
+frp-tun <command> [options]
+```
+
+### Global Options
+
+- `-h`, `--help`, `help`: Print general usage help or help for a specific subcommand.
+- `-v`, `--version`, `version`: Display build version information.
+
+### Default Control Socket Path
+
+`frp-tun` daemon and client commands communicate over a local UNIX Domain Socket by default:
+- **Default Socket Path**: `/var/run/frp-tun.sock` (equivalent to `/run/frp-tun.sock` on modern systemd Linux distributions);
+- **Access Control**: Created with restricted permissions by the daemon process; client commands require appropriate read/write privileges;
+- **Flag Override**: All commands that interact with the daemon accept `--socket <path>` to specify a custom control socket path.
+
+---
+
+## 2. Subcommands
+
+### 2.1 check (Configuration Preflight)
+
+Parses the configuration file and verifies local policy routing tables for resource conflicts. This is a **read-only check** without side effects on the network stack.
+
+```bash
+frp-tun check [-c /path/to/config.toml]
+```
+
+- `-c`, `--config <path>`: Path to configuration file (default: `/etc/frp-tun/config.toml`).
+
+---
+
+### 2.2 init (Site Identity Initialization)
+
+Initializes local identity storage, generating a new private key or importing from existing key material.
+
+```bash
+frp-tun init [--dir /etc/frp-tun] [--import /path/to/private.key]
+```
+
+- `--dir <path>`: Identity directory (default: `/etc/frp-tun`).
+- `--import <file>`: Optional path to an existing private key file to import.
+
+---
+
+### 2.3 export (Export Peer Declaration)
+
+Generates a JSON declaration containing public identity parameters (site ID, public key, allowed prefixes) for offline exchange.
+
+```bash
+frp-tun export [-c /path/to/config.toml]
+```
+
+- `-c`, `--config <path>`: Path to configuration file (default: `/etc/frp-tun/config.toml`).
+
+> **Security Guarantee**: `export` strictly excludes private keys and only includes public routing and identity data.
+
+---
+
+### 2.4 import (Verified Peer Import)
+
+Imports a peer declaration file while verifying its public key fingerprint against an expected hash.
+
+```bash
+frp-tun import --declaration <file> --fingerprint <hash>
+```
+
+- `--declaration <file>`: **Required**, path to the peer declaration JSON file.
+- `--fingerprint <hash>`: **Required**, expected SHA256 fingerprint of the peer's public key.
+
+---
+
+### 2.5 run (Foreground Daemon Service)
+
+Starts the `frp-tun` gateway service. Restores journal state if necessary, sets up dual-plane routing isolation, initializes WireGuard overlay and bridge pump, and listens on the UNIX control socket.
+
+```bash
+frp-tun run [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
+```
+
+- `-c`, `--config <path>`: Path to configuration file (default: `/etc/frp-tun/config.toml`).
+- `--socket <path>`: UNIX domain control socket path (default: `/var/run/frp-tun.sock`).
+
+---
+
+### 2.6 status (Instance Status Query)
+
+Connects to the control socket of a running instance and retrieves real-time operating metrics in structured JSON format.
+
+```bash
+frp-tun status [--socket /var/run/frp-tun.sock]
+```
+
+- `--socket <path>`: Path to control socket (default: `/var/run/frp-tun.sock`).
+
+---
+
+### 2.7 doctor (Environment Diagnostics)
+
+Inspects prerequisites and runtime requirements on the host operating system.
+
+```bash
+frp-tun doctor [-c /path/to/config.toml]
+```
+
+- `-c`, `--config <path>`: Path to configuration file (default: `/etc/frp-tun/config.toml`).
+
+---
+
+### 2.8 apply (Hot Configuration Reload)
+
+Pushes a new configuration file to the running daemon without interrupting active tunnels.
+
+```bash
+frp-tun apply [-c /path/to/new_config.toml] [--socket /var/run/frp-tun.sock]
+```
+
+- `-c`, `--config <path>`: Path to new configuration file (default: `/etc/frp-tun/config.toml`).
+- `--socket <path>`: Path to control socket (default: `/var/run/frp-tun.sock`).
+
+---
+
+### 2.9 down (Stop and Teardown Resources)
+
+Gracefully stops the daemon and removes all owned network interfaces, policy routing rules, and blackhole filters.
+
+```bash
+frp-tun down [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
+```
+
+- `-c`, `--config <path>`: Path to configuration file (default: `/etc/frp-tun/config.toml`).
+- `--socket <path>`: Path to control socket (default: `/var/run/frp-tun.sock`).
+
+---
+
+### 2.10 forget-prefix (Retire IPv6 Prefix)
+
+Unregisters a retired IPv6 prefix from persistent blackhole protection.
+
+```bash
+frp-tun forget-prefix --prefix <cidr> [--socket /var/run/frp-tun.sock]
+```
+
+- `--prefix <cidr>`: **Required**, retired IPv6 CIDR prefix (e.g. `2001:db8:1::/64`).
+- `--socket <path>`: Path to control socket (default: `/var/run/frp-tun.sock`).
+
+---
+
+### 2.11 disable-ipv6 (Disable IPv6 Protection)
+
+Signals the running daemon to disable IPv6 operations and clear related route rules.
+
+```bash
+frp-tun disable-ipv6 [--socket /var/run/frp-tun.sock]
+```
+
+- `--socket <path>`: Path to control socket (default: `/var/run/frp-tun.sock`).
+
+---
+
+## 3. Exit Codes
+
+| Code | Category | Meaning |
+| :--- | :--- | :--- |
+| `0` | **Success** | Command finished successfully. |
+| `2` | **Usage / Config Error** | Invalid flags or syntax errors in configuration. |
+| `3` | **Prerequisite Failure** | Missing system requirements or resource conflicts detected. |
+| `4` | **Runtime Failure** | Daemon startup failure or control socket communication error. |
