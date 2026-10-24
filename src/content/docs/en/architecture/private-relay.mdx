@@ -1,0 +1,13 @@
+---
+title: Private Relay Hub-and-Spoke
+description: Multi-site fallback topology using private STCP hubs when direct P2P connectivity is unavailable.
+version: preview
+---
+
+> **Applicable version: technical preview.** Private relay capacity planning, fault domain isolation, and multi-site failover dynamics require validation in operator environments.
+
+![Three frp-tun sites connect via direct P2P mesh when reachable, falling back to a private frps/STCP Hub for encrypted datagram transport when direct paths fail.](/images/diagrams/private-relay-hub-spoke.svg)
+
+The private relay hub never terminates WireGuard encryption and must not function as a general-purpose router for site subnets. It serves strictly as a controlled fallback transport waypoint for encrypted underlay carriers.
+
+Operators deploying private hubs must enforce distinct authentication credentials, principle of least privilege network policies, and independent monitoring for relay bandwidth and system resources.

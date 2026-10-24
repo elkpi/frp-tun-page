@@ -1,0 +1,93 @@
+---
+title: Minimal Two-Site Configuration
+description: Minimal required parameters and complete sanitized configuration examples for interconnecting two Linux/OpenWrt gateways.
+version: preview
+---
+
+> **Applicable version: technical preview (v0.5.1).** This minimal configuration includes all essential fields required to establish WireGuard encryption and frp carrier traversal (including frps endpoint, authentication token, and pre-shared handshake keys).
+
+In this scenario, **Site A** operates as the passive listener (`role = "proxy"`), while **Site B** acts as the active dialer (`role = "visitor"`). Both sites authenticate through a shared public `frps` relay server to exchange hole-punching signaling.
+
+---
+
+### 1. Site A Configuration (`site-a.toml`)
+
+```toml
+schema_version = 1
+
+[site]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+
+[peer]
+id = "site-b"
+networks = ["198.51.200.0/24"]
+tunnel_address = "198.51.100.2/32"
+role = "visitor"
+allow_relay = true
+public_key = "REPLACE_WITH_SITE_B_PUBLIC_KEY"
+
+[frp]
+server_addr = "relay.example.com"
+server_port = 7000
+token = "REPLACE_WITH_FRP_TOKEN"
+shared_secret = "REPLACE_WITH_SHARED_SECRET"
+tls = true
+
+[wireguard]
+mode = "auto"
+private_key = "REPLACE_WITH_SITE_A_PRIVATE_KEY"
+
+[forwarding]
+authorize_enable = true
+mode = "nftables"
+```
+
+---
+
+### 2. Site B Configuration (`site-b.toml`)
+
+```toml
+schema_version = 1
+
+[site]
+id = "site-b"
+networks = ["198.51.200.0/24"]
+tunnel_address = "198.51.100.2/32"
+role = "visitor"
+allow_relay = true
+
+[peer]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+public_key = "REPLACE_WITH_SITE_A_PUBLIC_KEY"
+
+[frp]
+server_addr = "relay.example.com"
+server_port = 7000
+token = "REPLACE_WITH_FRP_TOKEN"
+shared_secret = "REPLACE_WITH_SHARED_SECRET"
+tls = true
+
+[wireguard]
+mode = "auto"
+private_key = "REPLACE_WITH_SITE_B_PRIVATE_KEY"
+
+[forwarding]
+authorize_enable = true
+mode = "nftables"
+```
+
+---
+
+### Verification Checklist
+
+- **Server Connection & Auth**: Both nodes must point their `server_addr` and `server_port` to the same accessible frps instance, with identical `token` values matching the frps configuration.
+- **Pre-Shared Secret**: Both endpoints must configure identical `shared_secret` strings for XTCP/STCP cryptographic session negotiation.
+- **Asymmetric Key Pairs**: Set `public_key` on Site A to Site B's public key, and set `public_key` on Site B to Site A's public key.

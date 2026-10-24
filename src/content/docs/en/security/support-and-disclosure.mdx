@@ -1,0 +1,42 @@
+---
+title: Support & Vulnerability Disclosure
+description: Public support scope, data sanitization rules, and confidential vulnerability disclosure channels.
+version: preview
+---
+
+> **Applicable version: technical preview.**
+
+**Publisher**: Ping (ELKPI)  
+**Legal & Inquiries**: `contact@elkpi.com`  
+**Security Disclosure**: `security@elkpi.com`  
+
+---
+
+## 1. Coordinated Vulnerability Disclosure
+
+If you discover a potential security defect (such as encryption bypass, plaintext packet leakage, or privilege escalation), please adhere strictly to responsible disclosure principles:
+
+- **Send reports to**: `security@elkpi.com`;
+- **Do Not Disclose Publicly**: Do not submit vulnerability details to public GitHub Issues, Discussions, or social media;
+- **Report Content**: Provide the affected version, operating system and architecture, an impact description, and minimal sanitized reproduction steps;
+- **Response Commitment**: We will acknowledge receipt within 48 hours and initiate patch development or asset revocation procedures following assessment.
+
+---
+
+## 2. Public Support & Sanitization Guidelines
+
+For general questions and sanitized bug reports, please use [GitHub Issues](https://github.com/elkpi/frp-tun-page/issues) or [GitHub Discussions](https://github.com/elkpi/frp-tun-page/discussions).
+
+Before submitting public content, you **must** audit and remove all sensitive material:
+1. **WireGuard Private Keys**: Never include concrete `PrivateKey` values;
+2. **frp Credentials**: Never paste real `token` or `shared_secret` strings;
+3. **Production Endpoints**: Replace real IP addresses with RFC 5737/3849 documentation addresses (e.g. `198.51.100.x`), and domain names with `example.com`;
+4. **Diagnostic Logs**: Screenshots and text logs must not reveal internal hostnames, corporate infrastructure, or private network topology.
+
+---
+
+## 3. Lawful Use & Disclaimers
+
+- `frp-tun` is provided strictly for lawful network interconnection and technical evaluation in authorized network environments;
+- **Unlawful exploitation or malicious use violating the laws of the People's Republic of China or the user's local jurisdiction is strictly prohibited**;
+- **Any and all legal liabilities arising from unlawful conduct are borne entirely and independently by the operator; the developer disclaims all joint or secondary liability**. Refer to the complete [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).

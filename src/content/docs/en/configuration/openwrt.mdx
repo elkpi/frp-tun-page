@@ -1,0 +1,18 @@
+---
+title: OpenWrt Deployment Considerations
+description: Privileges, routing tables, and firewall boundaries to inspect before deploying frp-tun on OpenWrt gateways.
+version: preview
+---
+
+> **Applicable version: technical preview.** Specific OpenWrt SoC platforms, non-zero `SO_MARK` socket options, and long-term embedded router stability remain subject to ongoing evaluation.
+
+```toml
+[openwrt]
+interface_alias = "frp-tun:REPLACE_WITH_SITE_ID"
+config_path = "/etc/frp-tun/REPLACE_WITH_CONFIG_NAME.toml"
+
+[wireguard]
+private_key = "REPLACE_WITH_PRIVATE_KEY"
+```
+
+Prior to gateway deployment, verify that the daemon execution context retains `CAP_NET_ADMIN` and `CAP_NET_RAW` capabilities. Operators should back up current `ip rule`, custom routing tables, and nftables firewall rules. All upgrades should occur within designated maintenance windows with an independent manual rollback path prepared.

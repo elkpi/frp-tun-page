@@ -1,0 +1,11 @@
+---
+title: Troubleshooting
+description: Diagnosing preview deployment issues without disclosing sensitive infrastructure material.
+version: preview
+---
+
+> **Applicable version: technical preview.** Never post private keys, authentication tokens, full raw configuration files, production public IPs, private subnets, or unrestricted log dumps to public support channels.
+
+Begin troubleshooting by inspecting local service status, interface ownership (`frp-tun:<uid>`), policy routing tables (`ip rule`), and nftables filter counters before checking whether the carrier is toggling between direct P2P and STCP relay modes.
+
+Public issue submissions should only include sanitized version numbers, operating system distribution and architecture, reproducible steps, and categorized error traces.

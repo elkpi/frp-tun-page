@@ -1,0 +1,13 @@
+---
+title: P2P Preferred & STCP Fallback
+description: How encrypted payload datagrams are transported between preferred direct paths and relay fallbacks.
+version: preview
+---
+
+> **Applicable version: technical preview.** XTCP/QUIC P2P traversal is subject to NAT, CGNAT, firewall rules, and frps configurations; wide-area reachability remains under experimental evaluation.
+
+![WireGuard encrypts traffic locally before transport; the carrier prefers XTCP/QUIC P2P direct connectivity and falls back to controlled STCP relays when P2P is unavailable.](/images/diagrams/direct-fallback.svg)
+
+WireGuard encrypts IP datagrams locally before packets leave the host. The bridge pump operates purely as an encrypted datagram shuttle between the local WireGuard socket and the active carrier, never inspecting IP payload data. Consequently, the STCP fallback path transports WireGuard ciphertext, never plaintext network traffic.
+
+"P2P Preferred" serves as a dynamic path-selection policy rather than an unconditional reachability guarantee. Operators must maintain an auditable STCP fallback configuration and independently verify tunnel failover and recovery behavior across their target network topology.

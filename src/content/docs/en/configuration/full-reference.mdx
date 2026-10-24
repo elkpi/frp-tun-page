@@ -1,0 +1,117 @@
+---
+title: Full Configuration Reference
+description: Complete frp-tun parameter dictionary, default values, and production sanitized configuration template.
+version: preview
+---
+
+> **Applicable version: technical preview (v0.5.1).** Production security best practice: restrict configuration file permissions to `0600` (`chmod 600 config.toml`) to prevent unauthorized local users from reading cryptographic credentials.
+
+`frp-tun` utilizes standard TOML syntax. The full parameter dictionary and sanitized production template are documented below:
+
+```toml
+schema_version = 1
+
+# ==============================================================================
+# 1. Local Site Configuration
+# ==============================================================================
+[site]
+id = "site-a"                         # Unique site identifier (Required, globally unique across network)
+networks = ["198.51.100.0/24"]        # Local LAN subnets (CIDR list advertised to peers)
+tunnel_address = "198.51.100.1/32"    # Local WireGuard point-to-point virtual tunnel IPv4 address (Required)
+role = "proxy"                        # Role: "proxy" (passive listener) or "visitor" (active dialer)
+allow_relay = true                    # Allow fallback to STCP relay when direct P2P fails (default: true)
+mtu = 1420                            # WireGuard MTU (default: 1420, must match across all peers)
+
+# Optional: IPv6 Tunnel & Dynamic Prefix Synchronization
+[site.ipv6]
+enabled = false
+tunnel_address = "2001:db8:1::1/128"
+lan_interfaces = ["br-lan"]
+dynamic_source = false
+max_active_prefixes = 16
+max_history_prefixes = 256
+
+# ==============================================================================
+# 2. Peer Site Configuration
+# ==============================================================================
+[peer]
+id = "site-b"                         # Remote peer identifier (Required)
+networks = ["198.51.200.0/24"]        # Remote LAN subnets (Routes will be installed toward these subnets)
+tunnel_address = "198.51.100.2/32"    # Peer WireGuard virtual tunnel IPv4 address (Required)
+role = "visitor"                      # Peer role: must be complementary ("proxy" vs "visitor")
+allow_relay = true                    # Allow peer to fall back to relay (default: true)
+mtu = 1420                            # Peer MTU (must match local MTU)
+public_key = "REPLACE_WITH_PEER_PUBLIC_KEY" # Peer static WireGuard public key (Base64)
+
+# Optional: Remote Peer IPv6 Tunnel
+[peer.ipv6]
+enabled = false
+tunnel_address = "2001:db8:1::2/128"
+accept_dynamic = false
+sync_port = 51830
+
+# ==============================================================================
+# 3. FRP Signaling & Underlay Configuration
+# ==============================================================================
+[frp]
+server_addr = "relay.example.com"     # Public hostname or IP of the frps signaling server (Required)
+server_port = 7000                    # frps listening port, typically 7000 (Required)
+tls = true                            # Enable TLS encrypted channel to frps (default: true)
+
+# Credential management: inline strings or external files (file paths recommended for production)
+token = "REPLACE_WITH_FRP_TOKEN"      # frps authentication token
+# token_file = "/etc/frp-tun/frps-token"
+
+shared_secret = "REPLACE_WITH_SHARED_SECRET" # Peer-to-peer XTCP/STCP pre-shared secret (must match on both sides)
+# shared_secret_file = "/etc/frp-tun/secret-key"
+
+# Advanced transport parameters
+client_id = ""                        # Custom client ID (derived from hardware MAC if left empty)
+transport_protocol = "quic"           # frps signaling transport protocol: "quic" (default), "tcp", "kcp", "websocket"
+p2p_use_compression = false           # Data compression for XTCP P2P direct channels (default: false)
+relay_use_compression = true          # Data compression for STCP relay fallback channels (default: true)
+
+# ==============================================================================
+# 4. WireGuard Engine Configuration
+# ==============================================================================
+[wireguard]
+mode = "auto"                         # Driver mode: "auto" (kernel preferred, fallback to userspace), "kernel", "userspace"
+private_key = "REPLACE_WITH_PRIVATE_KEY" # Local WireGuard private key
+# private_key_file = "/etc/frp-tun/identity-key" # Recommended: file path with 0600 permissions
+# interface_name = "ft0"              # Explicit interface name (defaults to ft0, ft1...)
+
+# ==============================================================================
+# 5. Kernel Forwarding & Firewall
+# ==============================================================================
+[forwarding]
+authorize_enable = true               # Authorize daemon to enable net.ipv4.ip_forward in sysctl
+mode = "nftables"                     # Firewall manager: "nftables" (default, automatic rule maintenance) or "manual"
+
+# ==============================================================================
+# 6. P2P Hole Punching & QoS Tuning
+# ==============================================================================
+[p2p]
+prefer_family = "ipv4"                # Direct connection preference: "ipv4" (default) or "ipv6"
+listen_port = 51821                   # Fixed public UDP listening port (default: 51821)
+manage_firewall = false               # Authorize daemon to open external firewall port
+nathole_coordinator = "frp"           # NAT hole-punching coordination engine: "frp" (default) or "native"
+family_standby = false                # Enable dual-stack warm standby channel
+
+# Optional: Multi-Path QoS Probing
+[p2p.qos]
+enabled = false                       # Enable dynamic QoS probing
+probe_interval = "1s"                 # RTT measurement interval
+probe_timeout = "2s"                  # Probe packet timeout threshold
+rtt_ratio_threshold = 1.3             # RTT switchover threshold ratio
+switchback_holddown = "30s"           # Stabilization observation holddown before switching back
+
+# ==============================================================================
+# 7. Logging & Diagnostics
+# ==============================================================================
+[log]
+to = "console"                        # Log output destination: "console" or file path
+level = "info"                        # Log level: "trace", "debug", "info", "warn", "error"
+max_days = 3                          # Log file retention days
+max_size = "10MB"                     # Log file rotation size threshold
+max_backups = 3                       # Number of rotated log archives to retain
+```

@@ -1,0 +1,14 @@
+---
+title: Upgrade & Rollback
+description: Maintaining an auditable and reversible manual change process during deployment updates.
+version: preview
+---
+
+> **Applicable version: technical preview.** Official binaries can be downloaded from the [Release Notes](/en/releases/) page alongside SHA256 checksums; the procedure below outlines operational guidelines for manual upgrade and rollback.
+
+1. Record baseline states before changes: active daemon version, interface status, `ip rule` table priorities, and nftables firewall counters;
+2. Verify binary integrity in an isolated environment against official SHA256 checksums;
+3. Execute within an approved maintenance window: stop the service, replace the executable, start the new binary, and inspect overlay interface health and fallback paths;
+4. If connectivity degradation occurs, immediately restore the previously verified binary and reinstate baseline routing rules.
+
+Upgrades must never overwrite or flush routing tables or firewall chains not owned by `frp-tun`.

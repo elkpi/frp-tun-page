@@ -40,8 +40,31 @@ for (const page of configurationPages) {
   });
 }
 
-test('English architecture, configuration, and security entry points exist', () => {
-  for (const page of ['en/architecture/index.mdx', 'en/configuration/index.mdx', 'en/security/index.mdx']) {
+test('all documentation pages have an English counterpart', () => {
+  const expectedEnglishPages = [
+    'en/index.mdx',
+    'en/getting-started/index.mdx',
+    'en/architecture/index.mdx',
+    'en/architecture/direct-fallback.mdx',
+    'en/architecture/two-site-gateway.mdx',
+    'en/architecture/private-relay.mdx',
+    'en/configuration/index.mdx',
+    'en/configuration/full-reference.mdx',
+    'en/configuration/minimal-two-site.mdx',
+    'en/configuration/dual-stack-qos.mdx',
+    'en/configuration/openwrt.mdx',
+    'en/operations/index.mdx',
+    'en/operations/cli-reference.mdx',
+    'en/operations/upgrade-rollback.mdx',
+    'en/operations/troubleshooting.mdx',
+    'en/security/index.mdx',
+    'en/security/privacy.mdx',
+    'en/security/support-and-disclosure.mdx',
+    'en/releases/index.mdx',
+    'en/releases/v0.5.1.mdx',
+  ];
+
+  for (const page of expectedEnglishPages) {
     assert.equal(existsSync(path.join(root, 'src/content/docs', page)), true, `${page} must exist`);
   }
 });

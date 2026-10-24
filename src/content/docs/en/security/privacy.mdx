@@ -1,0 +1,26 @@
+---
+title: Privacy Policy
+description: Default data handling boundaries for the public documentation site and frp-tun client binaries.
+version: preview
+---
+
+> **Applicable version: technical preview.**
+
+**Publisher**: Ping (ELKPI)  
+**Contact Email**: `contact@elkpi.com`  
+
+---
+
+## 1. Documentation Site Privacy
+
+- **No Ads or Behavioral Analytics**: This website contains zero advertising scripts, tracking pixels, or third-party behavioral analytics services;
+- **Zero Third-Party CDNs**: All static HTML/CSS assets, topology vector diagrams, and Pagefind offline search indices are self-hosted on the primary origin domain, preventing visitor IP address leakage to external tracking networks;
+- **No User Accounts or Tracking Cookies**: This is a static site without user login mechanisms, session cookies, or persistent device fingerprinting.
+
+---
+
+## 2. Client Binary Runtime Data Boundaries
+
+- **Zero Telemetry by Default**: The `frp-tun` client executable **never** transmits usage telemetry, crash dumps, system metrics, or hardware identifiers to the developer, ELKPI, or any unauthorized external endpoints;
+- **Local Key & Traffic Privacy**: All WireGuard private keys, cleartext network packets, and routing table policies reside strictly within the local host operating system. Only WireGuard end-to-end encrypted UDP ciphertext is transmitted across physical network interfaces;
+- **Controlled Network Endpoints**: Outbound connections established by the binary are **strictly limited** to user-configured frps relay endpoints (`server_addr`) and direct hole-punching signaling with declared peers.

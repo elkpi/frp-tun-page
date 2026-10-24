@@ -1,0 +1,113 @@
+---
+title: frp-tun v0.5.1
+description: NAT discovery and path selection optimizations, multi-architecture UPX binaries, and SHA256 checksums.
+slug: en/releases/v0.5.1
+version: v0.5.1
+status: release
+published: true
+---
+
+> **Official Release**  
+> **Release Date**: October 24, 2026  
+> **Release Artifacts**: Multi-architecture native UPX binary packages with checksum manifest  
+> **License**: Subject to the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+---
+
+## Summary
+
+`frp-tun v0.5.1` focuses on enhancing STUN/NAT traversal, weak network recovery, path-selection heuristics, and edge device probing efficiency.
+
+### Key Improvements
+
+1. **STUN Concurrent Racing Discovery**: DNS queries and network probes share a strict 500ms discovery budget, early-stopping as soon as 3 independent samples are collected;
+2. **DNS Debounce & Cooldown**: Implements a 5-minute local DNS cache and 30-second failure cooldown to eliminate redundant resolution overhead;
+3. **Cellular CGNAT Delta Prediction**: Adaptively identifies arithmetic port allocation patterns, executing 36–40 concurrent targeted predictive hole-punching attempts;
+4. **Seamless Path Promotion & Fast Recovery**: Tries all approved paths concurrently upon cold boot or link disruption; prioritizes connectivity recovery before smoothly promoting preferred paths;
+5. **Preferred Private Hub Debounced Fallback**: Adds a 30-second observation window and a 6-consecutive-success threshold to prevent route flapping under critical link margins;
+6. **Steady-State Low Power Consumption**: Automatically lowers probe frequency once a P2P direct path stabilizes, minimizing CPU load on embedded routers.
+
+---
+
+## Downloads & Binary Assets
+
+All precompiled binaries are compressed using UPX lossless compression, yielding compact file sizes between 3.1MB and 3.8MB for embedded router and edge gateway deployment.
+
+| Architecture / Platform | Filename | Download Link |
+|---|---|---|
+| **Linux amd64** (x86_64 servers & soft routers) | `frp-tun_v0.5.1_amd64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_amd64) |
+| **Linux arm64** (aarch64 Raspberry Pi, NAS, ARM routers) | `frp-tun_v0.5.1_arm64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_arm64) |
+| **Linux mips** (Big-endian MIPS routers & hardware) | `frp-tun_v0.5.1_mips-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_mips-softfloat) |
+| **Linux mipsle** (Little-endian MIPS wireless routers) | `frp-tun_v0.5.1_mipsle-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_mipsle-softfloat) |
+| **Complete Checksums Manifest** | `checksums.txt` | [Download checksums.txt](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/checksums.txt) |
+
+---
+
+## Verification
+
+Always verify the SHA256 checksum after downloading:
+
+```bash
+# Verify all binaries in current directory
+sha256sum -c checksums.txt
+```
+
+### Official SHA256 Manifest
+
+```text
+7c61bfbeaf9be669c762512fec922d216503c80ae08fa2f592adbe817eb6180a  frp-tun_v0.5.1_amd64
+4e7b8c7fc63a32f085e7baec6b4d32a9cbf415ec4434ffae1a5472eecfe8216c  frp-tun_v0.5.1_arm64
+5928d17ee6a63529aa8784fc290302fa9bc5a5d13ba81005ca6585141e06db3f  frp-tun_v0.5.1_mips-softfloat
+c4ea9d6bc20e29b877e6fa54cf579603e9112fa1eb7a08bc796d10db9f18b32d  frp-tun_v0.5.1_mipsle-softfloat
+```
+
+---
+
+## Verified Scope
+
+- Passed Go 1.27.1 full test suite, `go vet`, Python automation pipelines, and protocol signaling compatibility matrix;
+- Passed race detector checks and four-architecture cross-compilation validation in CI;
+- Passed smoke testing for Linux network namespaces, policy routing installation, and bridge datagram pumping.
+
+---
+
+## Known Limitations
+
+- Automated cross-compilation assets do not constitute commercial hardware platform endorsement;
+- Physical OpenWrt stress testing, non-zero `SO_MARK` privilege behavior, and complex multi-layer NAT traversal require evaluation in operator target networks;
+- Subject to the [EULA Disclaimers](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md); no automatic background update channel or SLA availability guarantee is provided.
+
+---
+
+## Upgrade
+
+1. Back up existing gateway configuration (e.g. `/etc/frp-tun/config.toml`);
+2. Stop the running daemon:
+   ```bash
+   systemctl stop frp-tun
+   ```
+3. Replace the binary and set executable permissions:
+   ```bash
+   chmod +x frp-tun_v0.5.1_amd64
+   mv frp-tun_v0.5.1_amd64 /usr/local/bin/frp-tun
+   ```
+4. Start the service and inspect runtime status:
+   ```bash
+   systemctl start frp-tun
+   ```
+
+---
+
+## Rollback
+
+If unexpected behavior occurs post-upgrade:
+1. Stop the service: `systemctl stop frp-tun`;
+2. Restore the previous verified binary to `/usr/local/bin/frp-tun`;
+3. Clean up residual policy routes and interfaces (if any): `ip link delete frp-tun:0 2>/dev/null || true`;
+4. Restart the previous daemon version.
+
+---
+
+## Revocation
+
+In the event of critical security flaws or kernel panics, maintainers will mark the release as `REVOKED — DO NOT USE`, remove affected binary assets, and issue a security bulletin via [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).

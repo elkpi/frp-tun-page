@@ -1,0 +1,13 @@
+---
+title: Two-Site Gateway Architecture
+description: Placement of overlay interfaces, underlay carriers, and policy routing rules across two Linux/OpenWrt gateways.
+version: preview
+---
+
+> **Applicable version: technical preview.** Comprehensive behavior across physical OpenWrt devices, non-zero `SO_MARK` sockets, and sustained production loads remains subject to operator validation.
+
+![LAN networks at Site A and Site B route traffic through policy tables, WireGuard interfaces, and bridge carriers, utilizing preferred P2P connections with STCP relay fallback.](/images/diagrams/two-site-gateway.svg)
+
+Isolation and routing rules are established prior to interface activation to prevent plaintext packet leakage during gateway startup or link recovery. Each site instance is isolated within its own dedicated routing table, rule priority range, socket mark, and interface alias identifier (`frp-tun:<uid>`).
+
+Before deployment or upgrading, operators must inspect existing host routing tables to ensure existing network policies are preserved and isolated from `frp-tun` managed resources.
