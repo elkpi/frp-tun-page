@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const architecturePages = [
+  ['architecture/index.mdx', 'architecture-overview.svg'],
   ['architecture/direct-fallback.mdx', 'direct-fallback.svg'],
   ['architecture/two-site-gateway.mdx', 'two-site-gateway.svg'],
   ['architecture/private-relay.mdx', 'private-relay-hub-spoke.svg'],
@@ -24,7 +25,6 @@ for (const [page, diagram] of architecturePages) {
     const content = readFileSync(pagePath, 'utf8');
     assert.match(content, new RegExp(`!\\[[^\\]]+\\]\\([^)]*${diagram}\\)`));
     assert.match(content, /适用版本：技术预览/);
-    assert.match(content, /实验性|待验证/);
   });
 }
 

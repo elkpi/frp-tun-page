@@ -1,0 +1,69 @@
+direction: down
+
+title: frp-tun 节点双平面架构分层 {
+  shape: text
+  style.font-size: 24
+  style.bold: true
+}
+
+lan: 本地内网流量 (LAN Traffic) {
+  style.fill: "#182635"
+  style.stroke: "#64748b"
+  style.font-color: "#f8fafc"
+}
+
+daemon: frp-tun 网关守护进程 {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  net_layer: 网络隔离与策略路由层 (Linux Driver) {
+    style.fill: "#1e3a5f"
+    style.stroke: "#4cc9f0"
+    style.font-color: "#ffffff"
+
+    rules: ip rule 策略规则 (Priority / Mark)
+    routes: 专用路由表与 Guard Blackhole 黑洞保护
+  }
+
+  overlay_layer: 加密数据面 (WireGuard Overlay) {
+    style.fill: "#0d5c73"
+    style.stroke: "#74d9f6"
+    style.font-color: "#ffffff"
+
+    wg: Native WireGuard 接口 (frp-tun:uid)
+    port: 固定回环 UDP 端口 (Loopback PinWGPort)
+  }
+
+  bridge_layer: 桥接流水线 (Bridge Pump) {
+    style.fill: "#1a4a63"
+    style.stroke: "#4cc9f0"
+    style.font-color: "#ffffff"
+
+    pump: 单读写协程无锁泵 (Zero-contention Datagram Pump)
+    probe: 控制信令复用器 (ProbeMux Ping/Pong)
+  }
+
+  underlay_layer: 底层传输载体 (frp Carrier Underlay) {
+    style.fill: "#1a4a63"
+    style.stroke: "#f4a261"
+    style.font-color: "#ffffff"
+
+    supervisor: Supervisor 状态机与非阻塞竞速拨号
+    p2p_carrier: P2P 直连通道 (XTCP / QUIC)
+    relay_carrier: 中继回退通道 (STCP Relay)
+  }
+
+  net_layer -> overlay_layer: 路由命中与明文流量引导
+  overlay_layer -> bridge_layer: 本地端到端加密 UDP 数据报
+  bridge_layer -> underlay_layer: 密文数据报泵送
+}
+
+remote_carrier: 远端 Peer 或受控 frps 中继 {
+  style.stroke: "#f4a261"
+  style.fill: "#4a2840"
+  style.font-color: "#ffffff"
+}
+
+lan -> daemon.net_layer: 业务访问 (入站/出站)
+daemon.underlay_layer -> remote_carrier: 加密传输 (P2P优先 / STCP中继兜底)

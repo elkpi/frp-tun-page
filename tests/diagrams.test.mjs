@@ -5,7 +5,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const diagramNames = ['direct-fallback', 'two-site-gateway', 'private-relay-hub-spoke'];
+const diagramNames = ['architecture-overview', 'direct-fallback', 'two-site-gateway', 'private-relay-hub-spoke'];
 
 for (const name of diagramNames) {
   test(`renders ${name} from source without external assets`, () => {

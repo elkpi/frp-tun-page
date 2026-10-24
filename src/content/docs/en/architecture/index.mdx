@@ -1,9 +1,16 @@
 ---
-title: Architecture
-description: WireGuard overlay, frp carrier, and routing isolation boundaries.
+title: Architecture Overview
+description: WireGuard overlay, frp carrier, bridge pipeline, and policy routing boundaries.
 version: preview
 ---
 
 > **Applicable version: technical preview.** P2P reachability, OpenWrt hardware, non-zero `SO_MARK`, long-running load, WAN/netem, and public NAT traversal are not universal support claims.
 
-WireGuard encrypts locally before a bridge forwards datagrams to a carrier. The carrier prefers a direct P2P path and may fall back to STCP without exposing application plaintext.
+![frp-tun node dual-plane architecture: network isolation, WireGuard overlay, bridge pump, and frp carrier underlay.](/images/diagrams/architecture-overview.svg)
+
+frp-tun adopts a **Dual-Plane** design that strictly decouples end-to-end encryption from carrier transport:
+
+1. **Isolation & Policy Routing Layer**: Installs guard blackhole routes before configuring interfaces to eliminate unencrypted packet leaks during failover or recovery;
+2. **WireGuard Overlay Plane**: Encrypts datagrams at local loopback UDP ports before packets reach user-space carriers;
+3. **Bridge Pipeline**: Pumps datagrams between WireGuard loopback sockets and active carriers, multiplexing probe frames via `ProbeMux`;
+4. **Carrier Underlay Plane**: Prioritizes direct P2P (XTCP/QUIC) connections and seamlessly fails over to STCP relays under supervisor control.

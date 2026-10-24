@@ -1,13 +1,32 @@
 ---
 title: 架构概览
-description: WireGuard overlay、frp carrier 与策略路由的职责边界。
+description: WireGuard overlay、frp carrier、Bridge 流水线与策略路由的职责边界。
 version: preview
 ---
 
 > **适用版本：技术预览。** 下列设计描述不等同于所有 Linux/OpenWrt 硬件、WAN 或 NAT 环境已经验证。
 
-frp-tun 将数据面与传输控制面分离：WireGuard 在本地 loopback 端口完成加密，Bridge pump 只转发加密后的 UDP 数据报，carrier 再选择可用的 P2P 或 STCP 路径。
+![frp-tun 节点内部双平面架构：包含策略路由隔离层、WireGuard 加密 Overlay、Bridge 数据泵与 frp Carrier 传输层。](/images/diagrams/architecture-overview.svg)
 
-- [P2P 优先与 STCP 回退](/architecture/direct-fallback/)；
-- [双站点网关](/architecture/two-site-gateway/)；
-- [私有中继 Hub-and-Spoke](/architecture/private-relay/)。
+`frp-tun` 采用**双平面（Dual-Plane）**架构设计，严格解耦“端到端数据加密面”与“底层穿透传输面”：
+
+1. **网络隔离与策略路由层 (`internal/network`)**：
+   - 采用“隔离优先（Isolation-First）”原则，在配置网络接口前预装黑洞路由（`RTN_BLACKHOLE`）与策略路由（`ip rule`），防止在崩溃恢复或接口变动期间发生明文泄漏；
+   - 为每个站点分配独立的路由表 ID、Rule Priority、Mark 与接口别名（`frp-tun:<uid>`）。
+2. **WireGuard Overlay 加密面**：
+   - 运行原生 WireGuard，绑定到确定的回环（Loopback）UDP 源端口；
+   - 所有业务数据包在触碰用户态传输载体前，**已在内核层面完成严格端到端加密**。
+3. **Bridge 桥接流水线 (`internal/bridge`)**：
+   - 专用的读写泵 goroutine 在本地 WireGuard 回环与活动 Carrier 之间无锁泵送 UDP 数据报；
+   - `ProbeMux` 在同一信道上复用保活与延迟探测帧，不干扰业务数据泵。
+4. **Carrier Underlay 传输面 (`internal/carrier` & `internal/supervisor`)**：
+   - 仅复用 frp 协议报文协议规范，通过 `SO_MARK` 避免控制流路由环路；
+   - **Supervisor 状态机**：优先选择 XTCP/QUIC P2P 直连通道；P2P 不可用时平滑无缝回退到 STCP Relay 中继，并在后台进行非阻塞异步拨号以伺机晋升恢复直连。
+
+---
+
+## 详细拓扑与子系统
+
+- [P2P 优先与 STCP 回退拓扑](/architecture/direct-fallback/)：直连优先与中继兜底的数据路径流向；
+- [双站点网关部署架构](/architecture/two-site-gateway/)：Linux / OpenWrt 真实网关各组件交互位置；
+- [私有中继 Hub-and-Spoke 拓扑](/architecture/private-relay/)：多 Peer Mesh 直连与私有中继容灾。
