@@ -1,0 +1,36 @@
+name: Bug report
+description: Submit a redacted reproducible problem report.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include private keys, tokens, shared secrets, full configuration files, real public IP addresses, internal network ranges, customer information, or complete logs.
+  - type: input
+    id: version
+    attributes:
+      label: frp-tun version
+      description: Use the exact preview tag if one has been published.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Redacted environment
+      description: Operating system, architecture, and deployment mode only.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest redacted sequence that reproduces the behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+    validations:
+      required: true
