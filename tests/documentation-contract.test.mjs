@@ -45,3 +45,34 @@ test('English architecture, configuration, and security entry points exist', () 
     assert.equal(existsSync(path.join(root, 'src/content/docs', page)), true, `${page} must exist`);
   }
 });
+
+test('sidebar configuration translates all custom Chinese labels for English', () => {
+  const config = readFileSync(path.join(root, 'astro.config.mjs'), 'utf8');
+  const englishLabels = [
+    'Get started',
+    'Project overview',
+    'Architecture',
+    'Architecture overview',
+    'P2P & relay fallback',
+    'Two-site gateway',
+    'Private relay hub',
+    'Configuration',
+    'Configuration overview',
+    'Full configuration reference',
+    'Minimal two-site configuration',
+    'Dual-stack & QoS configuration',
+    'OpenWrt notes',
+    'Operations & security',
+    'CLI reference',
+    'Upgrade & rollback',
+    'Troubleshooting',
+    'Security boundaries',
+    'Privacy policy',
+    'Security disclosure & support',
+    'Release notes',
+  ];
+
+  for (const label of englishLabels) {
+    assert.match(config, new RegExp(`translations: \\{ en: '${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' \\}`));
+  }
+});
