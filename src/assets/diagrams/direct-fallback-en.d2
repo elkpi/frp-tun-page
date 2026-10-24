@@ -1,0 +1,67 @@
+direction: right
+
+site_a: Site A Gateway {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  wg_a: WireGuard overlay {
+    style.fill: "#0d5c73"
+    style.font-color: "#ffffff"
+    style.stroke: "#74d9f6"
+  }
+  bridge_a: Bridge pump {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+  carrier_a: frp carrier {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+
+  wg_a -> bridge_a: Encrypted UDP Datagrams
+  bridge_a -> carrier_a
+}
+
+site_b: Site B Gateway {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  carrier_b: frp carrier {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+  bridge_b: Bridge pump {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+  wg_b: WireGuard overlay {
+    style.fill: "#0d5c73"
+    style.font-color: "#ffffff"
+    style.stroke: "#74d9f6"
+  }
+
+  carrier_b -> bridge_b
+  bridge_b -> wg_b: Encrypted UDP Datagrams
+}
+
+relay: Controlled frp Relay (frps) {
+  style.stroke: "#f4a261"
+  style.fill: "#4a2840"
+  style.font-color: "#ffffff"
+}
+
+site_a.carrier_a -> site_b.carrier_b: "Preferred: Direct XTCP / QUIC P2P" {
+  style.stroke: "#4cc9f0"
+  style.stroke-width: 3
+}
+
+site_a.carrier_a -> relay: "P2P Unavailable: STCP relay" {
+  style.stroke: "#f4a261"
+  style.stroke-dash: 4
+}
+relay -> site_b.carrier_b: "STCP Ciphertext Relay" {
+  style.stroke: "#f4a261"
+  style.stroke-dash: 4
+}

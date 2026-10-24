@@ -1,0 +1,69 @@
+direction: down
+
+title: frp-tun Node Dual-Plane Architecture {
+  shape: text
+  style.font-size: 24
+  style.bold: true
+}
+
+lan: Local LAN Traffic {
+  style.fill: "#182635"
+  style.stroke: "#64748b"
+  style.font-color: "#f8fafc"
+}
+
+daemon: frp-tun Gateway Daemon {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  net_layer: Network Isolation & Policy Routing Layer (Linux Driver) {
+    style.fill: "#1e3a5f"
+    style.stroke: "#4cc9f0"
+    style.font-color: "#ffffff"
+
+    rules: ip rule Policy Rules (Priority / Mark)
+    routes: Dedicated Route Tables & Blackhole Guards
+  }
+
+  overlay_layer: Encrypted Data Plane (WireGuard Overlay) {
+    style.fill: "#0d5c73"
+    style.stroke: "#74d9f6"
+    style.font-color: "#ffffff"
+
+    wg: Native WireGuard Interface (frp-tun:uid)
+    port: Loopback PinWGPort (Fixed UDP Port)
+  }
+
+  bridge_layer: Bridge Pipeline (Bridge Pump) {
+    style.fill: "#1a4a63"
+    style.stroke: "#4cc9f0"
+    style.font-color: "#ffffff"
+
+    pump: Zero-Contention Datagram Pump
+    probe: Control Signaling Multiplexer (ProbeMux)
+  }
+
+  underlay_layer: Carrier Underlay (frp Transport Plane) {
+    style.fill: "#1a4a63"
+    style.stroke: "#f4a261"
+    style.font-color: "#ffffff"
+
+    supervisor: Supervisor State Machine & Concurrent Dialer
+    p2p_carrier: Direct P2P Channel (XTCP / QUIC)
+    relay_carrier: Fallback Relay Channel (STCP Relay)
+  }
+
+  net_layer -> overlay_layer: Route Match & Cleartext Forwarding
+  overlay_layer -> bridge_layer: Local End-to-End Encrypted UDP Datagrams
+  bridge_layer -> underlay_layer: Pump Encrypted Datagrams
+}
+
+remote_carrier: Remote Peer or Controlled frps Relay {
+  style.stroke: "#f4a261"
+  style.fill: "#4a2840"
+  style.font-color: "#ffffff"
+}
+
+lan -> daemon.net_layer: User Traffic (Inbound / Outbound)
+daemon.underlay_layer -> remote_carrier: Encrypted Transport (P2P Preferred / STCP Fallback)

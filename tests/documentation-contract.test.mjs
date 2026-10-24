@@ -29,6 +29,24 @@ for (const [page, diagram] of architecturePages) {
   });
 }
 
+const englishArchitecturePages = [
+  ['en/architecture/index.mdx', 'architecture-overview-en.svg'],
+  ['en/architecture/direct-fallback.mdx', 'direct-fallback-en.svg'],
+  ['en/architecture/two-site-gateway.mdx', 'two-site-gateway-en.svg'],
+  ['en/architecture/private-relay.mdx', 'private-relay-hub-spoke-en.svg'],
+];
+
+for (const [page, diagram] of englishArchitecturePages) {
+  test(`${page} explains its local topology diagram`, () => {
+    const pagePath = path.join(root, 'src/content/docs', page);
+    assert.equal(existsSync(pagePath), true, `${page} must exist`);
+
+    const content = readFileSync(pagePath, 'utf8');
+    assert.match(content, new RegExp(`!\\[[^\\]]+\\]\\([^)]*${diagram}\\)`));
+    assert.match(content, /Applicable version: technical preview/i);
+  });
+}
+
 for (const page of configurationPages) {
   test(`${page} preserves preview and safe-example boundaries`, () => {
     const pagePath = path.join(root, 'src/content/docs', page);

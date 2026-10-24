@@ -1,0 +1,68 @@
+direction: right
+
+lan_a: Site A LAN (Local Clients) {
+  style.fill: "#182635"
+  style.stroke: "#64748b"
+  style.font-color: "#f8fafc"
+}
+
+gateway_a: Site A Linux / OpenWrt Gateway {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  routing_a: Policy Routing & Isolation Rules {
+    style.fill: "#1e3a5f"
+    style.stroke: "#4cc9f0"
+    style.font-color: "#ffffff"
+  }
+  wg_a: WireGuard Interface (frp-tun:uid) {
+    style.fill: "#0d5c73"
+    style.stroke: "#74d9f6"
+    style.font-color: "#ffffff"
+  }
+  bridge_a: Bridge + Carrier (Underlay) {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+
+  routing_a -> wg_a: Pre-encryption Inspection
+  wg_a -> bridge_a: Encrypted Datagrams
+}
+
+gateway_b: Site B Linux / OpenWrt Gateway {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  bridge_b: Bridge + Carrier (Underlay) {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+  wg_b: WireGuard Interface (frp-tun:uid) {
+    style.fill: "#0d5c73"
+    style.stroke: "#74d9f6"
+    style.font-color: "#ffffff"
+  }
+  routing_b: Policy Routing & Isolation Rules {
+    style.fill: "#1e3a5f"
+    style.stroke: "#4cc9f0"
+    style.font-color: "#ffffff"
+  }
+
+  bridge_b -> wg_b: Pre-decryption Delivery
+  wg_b -> routing_b: Cleartext Delivery
+}
+
+lan_b: Site B LAN (Local Services) {
+  style.fill: "#182635"
+  style.stroke: "#64748b"
+  style.font-color: "#f8fafc"
+}
+
+lan_a -> gateway_a.routing_a: Ingress Traffic
+gateway_a.bridge_a -> gateway_b.bridge_b: "P2P Preferred / STCP Fallback" {
+  style.stroke: "#4cc9f0"
+  style.stroke-width: 3
+}
+gateway_b.routing_b -> lan_b: Destination Subnet
