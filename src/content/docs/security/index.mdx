@@ -1,12 +1,27 @@
 ---
-title: 安全边界
-description: 闭源技术预览的资料脱敏、验证证据与安全报告规则。
+title: 安全边界与责任准则
+description: 闭源技术预览的资料脱敏、验证证据、法律主体与安全准则。
 version: preview
 ---
 
-> **适用版本：技术预览。** 法律发行主体和安全报告地址尚未确定，因此本页不提供伪造的联系地址或下载入口。
+> **适用版本：技术预览。** 
 
-frp-tun 的设计目标是让 WireGuard 在 carrier 之前完成加密，但部署安全仍依赖正确的密钥管理、路由隔离、系统补丁和受控的 frp 凭据。
+**发行主体**：Ping (ELKPI)  
+**法律联络**：`contact@elkpi.com`  
+**漏洞披露**：`security@elkpi.com`  
 
-- [隐私](/security/privacy/)；
-- [支持与漏洞披露](/security/support-and-disclosure/)。
+`frp-tun` 专注于将 WireGuard 端到端加密与 frp 穿透传输结合，在本地 loopback 阶段完成数据报加密，杜绝明文上载。但网关安全取决于多层纵深防御与操作者的合规使用。
+
+---
+
+## 核心安全与免责边界
+
+1. **合法合规义务**：本软件仅供正当网络测试与研究用途。严禁用于任何破坏计算机系统或违法网络活动，违者独立承担全额法律责任，开发者不承担连带责任。详见 [EULA 与免责声明](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+2. **私钥隔离**：WireGuard 私钥仅留存于网关本地，绝不经由 carrier 传输，亦不得提交至公开 Issue。
+3. **策略路由沙箱**：接口启动前预装 guard blackhole 路由，防止加密通道中断时数据泄漏。
+4. **安全披露渠道**：请遵照负责任披露守则，将安全问题私下提交至 `security@elkpi.com`。
+
+---
+
+- [隐私政策](/security/privacy/)：默认零遥测与本地数据控制。
+- [支持与漏洞披露](/security/support-and-disclosure/)：漏洞报告指引与支持守则。

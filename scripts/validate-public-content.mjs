@@ -19,6 +19,8 @@ const textExtensions = new Set([
 ]);
 
 const allowedHostnames = new Set([
+  'd2lang.com',
+  'elkpi.com',
   'example.com',
   'frp-tun.elkpi.com',
   'github.com',
@@ -54,6 +56,8 @@ function isAllowedHostname(hostname) {
   const normalized = hostname.toLowerCase();
   return (
     normalized === 'localhost' ||
+    normalized === 'elkpi.com' ||
+    normalized.endsWith('.elkpi.com') ||
     normalized.endsWith('.example.com') ||
     normalized.endsWith('.test') ||
     allowedHostnames.has(normalized)
@@ -67,7 +71,7 @@ function collectFiles(root) {
   }
 
   return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '.superpowers') {
+    if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '.superpowers' || entry.name === 'dist') {
       return [];
     }
 
@@ -143,7 +147,7 @@ function formatViolation({ file, line, rule }) {
 
 if (import.meta.main) {
   const roots = process.argv.slice(2);
-  const selectedRoots = roots.length > 0 ? roots : ['src/content/docs', 'public', '.github', 'README.md'];
+  const selectedRoots = roots.length > 0 ? roots : ['src/content/docs', 'public', '.github', 'README.md', 'SECURITY.md', 'EULA.md'];
   const result = validatePublicContent({ roots: selectedRoots.filter((root) => {
     try {
       statSync(root);
