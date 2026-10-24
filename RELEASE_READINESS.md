@@ -17,7 +17,7 @@
 - [x] `npm test`（19 项安全与契约测试）与 `npm run build` 本地及 GitHub-hosted runner CI 均验证通过。
 - [x] 公开内容自动扫描和人工上下文复核完成。
 - [ ] 私有 `elkpi/frp-tun` 的受保护 tag 构建流程经过审批。
-- [ ] 四架构二进制、SHA-256、Sigstore/cosign OIDC 签名、provenance、SBOM 和 NOTICE 已验证。
+- [ ] 五架构二进制（amd64, arm64, arm, mips, mipsle）、SHA-256、Sigstore/cosign OIDC 签名、provenance、SBOM 和 NOTICE 已验证。
 - [ ] 新 preview 标签已建立，且距离公开 Release 至少 48 小时。
 - [ ] 自定义域名 `frp-tun.elkpi.com` DNS 验证、HTTPS 证书与根路径检查完成。
 - [ ] `PUBLIC_RELEASE_APPROVED` 仅在上述项目完成后设为 `true`。

@@ -19,7 +19,7 @@
 ### 发行与信任模型
 
 - 首个公开二进制必须使用新 preview 标签，例如 `v0.6.0-preview.1`，不得重新宣告现有开发标签已经通过公网发行验收。
-- GitHub Releases 是四架构原生压缩包的唯一首发下载渠道。每个发行包含 SHA-256 校验清单、Sigstore/cosign OIDC 签名与 provenance、SBOM、专有 EULA 和第三方 NOTICE。
+- GitHub Releases 是五架构（amd64, arm64, arm, mips, mipsle）原生压缩包的唯一首发下载渠道。每个发行包含 SHA-256 校验清单、Sigstore/cosign OIDC 签名与 provenance、SBOM、专有 EULA 和第三方 NOTICE。
 - 私有构建管道在人工批准后单向投递产物到公开仓库；公开仓库不能构建闭源核心，也不能拥有私有源码或长期发布凭据。
 - preview 阶段无自动更新、无固定发布时间表、无 SLA；仅维护最新 preview，升级与回退显式手动执行。
 - 单维护者仅可在 preview 采用例外流程：受保护 tag、全自动门禁、不可变发布清单、签名/provenance 和不少于 48 小时的 tag 到 Release 冷静期。稳定版或承诺支持的版本必须双人审批。
