@@ -28,33 +28,31 @@ function findD2Binary() {
 }
 
 const d2Binary = findD2Binary();
-const executableName = process.platform === 'win32' ? 'mmdc.cmd' : 'mmdc';
-const mermaidCli = path.join(root, 'node_modules/.bin', executableName);
-
 const entries = readdirSync(sourceDirectory, { withFileTypes: true });
-
-// First compile all .d2 sources using D2 if available
 const d2Sources = entries.filter((e) => e.isFile() && path.extname(e.name) === '.d2');
-if (d2Sources.length > 0 && d2Binary) {
-  for (const entry of d2Sources) {
-    const source = path.join(sourceDirectory, entry.name);
-    const output = path.join(outputDirectory, `${path.basename(entry.name, '.d2')}.svg`);
-    execFileSync(d2Binary, [source, output], {
-      stdio: 'inherit',
-    });
-  }
-} else {
-  // Fall back to Mermaid CLI
-  if (!existsSync(mermaidCli)) {
-    throw new Error('Neither D2 nor Mermaid CLI is available to compile diagrams.');
-  }
 
-  const mmdSources = entries.filter((e) => e.isFile() && path.extname(e.name) === '.mmd');
-  for (const entry of mmdSources) {
-    const source = path.join(sourceDirectory, entry.name);
-    const output = path.join(outputDirectory, `${path.basename(entry.name, '.mmd')}.svg`);
-    execFileSync(mermaidCli, ['-i', source, '-o', output, '-b', 'transparent'], {
-      stdio: 'inherit',
+if (d2Sources.length > 0) {
+  if (d2Binary) {
+    for (const entry of d2Sources) {
+      const source = path.join(sourceDirectory, entry.name);
+      const output = path.join(outputDirectory, `${path.basename(entry.name, '.d2')}.svg`);
+      execFileSync(d2Binary, [source, output], {
+        stdio: 'inherit',
+      });
+    }
+  } else {
+    // If D2 is not installed, verify that all target SVGs are already present
+    const missing = d2Sources.filter((entry) => {
+      const output = path.join(outputDirectory, `${path.basename(entry.name, '.d2')}.svg`);
+      return !existsSync(output);
     });
+
+    if (missing.length > 0) {
+      throw new Error(
+        `D2 CLI is not found and the following pre-compiled SVGs are missing: ${missing.map((e) => e.name).join(', ')}. Please install D2 from https://d2lang.com.`,
+      );
+    }
+
+    console.log('D2 compiler not present; pre-compiled SVGs already exist in public/images/diagrams, skipping.');
   }
 }
