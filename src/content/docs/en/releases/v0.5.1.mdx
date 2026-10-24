@@ -31,12 +31,13 @@ published: true
 
 ## Downloads & Binary Assets
 
-All precompiled binaries are compressed using UPX lossless compression, yielding compact file sizes between 3.1MB and 3.8MB for embedded router and edge gateway deployment.
+All precompiled binaries are compressed using UPX lossless compression, yielding compact file sizes between 3.1MB and 3.8MB for embedded router and edge gateway deployment. For 32-bit ARM (armv7) gateways, `frp-tun_arm` and `frp-tun_armv7` compatibility download symlinks are also provided.
 
 | Architecture / Platform | Filename | Download Link |
 |---|---|---|
 | **Linux amd64** (x86_64 servers & soft routers) | `frp-tun_v0.5.1_amd64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_amd64) |
 | **Linux arm64** (aarch64 Raspberry Pi, NAS, ARM routers) | `frp-tun_v0.5.1_arm64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_arm64) |
+| **Linux arm** (armv7 32-bit routers & gateways) | `frp-tun_v0.5.1_arm` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_arm) |
 | **Linux mips** (Big-endian MIPS routers & hardware) | `frp-tun_v0.5.1_mips-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_mips-softfloat) |
 | **Linux mipsle** (Little-endian MIPS wireless routers) | `frp-tun_v0.5.1_mipsle-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_mipsle-softfloat) |
 | **Complete Checksums Manifest** | `checksums.txt` | [Download checksums.txt](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/checksums.txt) |
@@ -55,10 +56,11 @@ sha256sum -c checksums.txt
 ### Official SHA256 Manifest
 
 ```text
-7c61bfbeaf9be669c762512fec922d216503c80ae08fa2f592adbe817eb6180a  frp-tun_v0.5.1_amd64
-4e7b8c7fc63a32f085e7baec6b4d32a9cbf415ec4434ffae1a5472eecfe8216c  frp-tun_v0.5.1_arm64
-5928d17ee6a63529aa8784fc290302fa9bc5a5d13ba81005ca6585141e06db3f  frp-tun_v0.5.1_mips-softfloat
-c4ea9d6bc20e29b877e6fa54cf579603e9112fa1eb7a08bc796d10db9f18b32d  frp-tun_v0.5.1_mipsle-softfloat
+084bfc2e59d473036f85d1a18c9e9eaab22e050418c33e8e42c64abaee4e4606  frp-tun_v0.5.1_amd64
+b4dd390224574273a4fd02f709a7370ee9d482bc36966da2d0dbf45c4f72a4bf  frp-tun_v0.5.1_arm
+9271aef4a7a9b8d8214d34c1d28568fb20b08c8142979522ac934b8aff66bda0  frp-tun_v0.5.1_arm64
+aaf1944688310fb288cdc535b22881e9fe593df3eb1262d57ec54a264cd6c9e8  frp-tun_v0.5.1_mipsle-softfloat
+3bd4b71fafd7687ae818ad11c7f5fdae9e48b1235ffa6666e5914a8f3f226c08  frp-tun_v0.5.1_mips-softfloat
 ```
 
 ---
@@ -66,7 +68,7 @@ c4ea9d6bc20e29b877e6fa54cf579603e9112fa1eb7a08bc796d10db9f18b32d  frp-tun_v0.5.1
 ## Verified Scope
 
 - Passed Go 1.27.1 full test suite, `go vet`, Python automation pipelines, and protocol signaling compatibility matrix;
-- Passed race detector checks and four-architecture cross-compilation validation in CI;
+- Passed race detector checks and five-architecture (amd64, arm64, 32-bit armv7, mips, mipsle) cross-compilation validation in CI;
 - Passed smoke testing for Linux network namespaces, policy routing installation, and bridge datagram pumping.
 
 ---
