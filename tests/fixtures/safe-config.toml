@@ -1,0 +1,5 @@
+[site]
+endpoint = "relay.example.com:7000"
+allowed_ipv4 = "198.51.100.10"
+allowed_ipv6 = "2001:db8::10"
+private_key = "REPLACE_WITH_PRIVATE_KEY"
