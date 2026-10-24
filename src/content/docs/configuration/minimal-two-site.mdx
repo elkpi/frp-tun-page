@@ -1,25 +1,93 @@
 ---
 title: 最小双站点配置
-description: 用于阅读配置结构的安全占位符示例。
+description: 两端 Linux/OpenWrt 互通所需的最小必配参数与完整脱敏示例。
 version: preview
 ---
 
-> **适用版本：技术预览。** 本站不提供二进制下载；示例不能直接连接真实网络。
+> **适用版本：技术预览 (v0.5.1)。** 最小配置包含保证 WireGuard 加密与 frp 穿透所**必须**填写的核心字段（包括 frps 服务端连接地址、身份 Token 与预共享通信密钥）。
 
-站点 A 与站点 B 都需要独立的 WireGuard 密钥、overlay 地址与 frp 身份。下面仅展示字段边界：
+在此场景下，**站点 A** 作为被动监听端（`role = "proxy"`），**站点 B** 作为主动连接端（`role = "visitor"`）。两端通过共同的公网 `frps` 信令服务器进行认证与协商打洞。
+
+---
+
+### 1. 站点 A 配置文件 (`site-a.toml`)
 
 ```toml
-[site]
-name = "site-a-example"
-endpoint = "relay.example.com:7000"
+schema_version = 1
 
-[wireguard]
-private_key = "REPLACE_WITH_PRIVATE_KEY"
-peer_public_key = "REPLACE_WITH_PEER_PUBLIC_KEY"
-address = "198.51.100.10/32"
+[site]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+
+[peer]
+id = "site-b"
+networks = ["198.51.200.0/24"]
+tunnel_address = "198.51.100.2/32"
+role = "visitor"
+allow_relay = true
+public_key = "REPLACE_WITH_SITE_B_PUBLIC_KEY"
 
 [frp]
+server_addr = "relay.example.com"
+server_port = 7000
 token = "REPLACE_WITH_FRP_TOKEN"
+shared_secret = "REPLACE_WITH_SHARED_SECRET"
+tls = true
+
+[wireguard]
+mode = "auto"
+private_key = "REPLACE_WITH_SITE_A_PRIVATE_KEY"
+
+[forwarding]
+authorize_enable = true
+mode = "nftables"
 ```
 
-将每个 `REPLACE_WITH_*` 值替换为站点专用的受控秘密，并把秘密保存在权限正确的本地文件或秘密管理系统中。不要将其内联到公开仓库。
+---
+
+### 2. 站点 B 配置文件 (`site-b.toml`)
+
+```toml
+schema_version = 1
+
+[site]
+id = "site-b"
+networks = ["198.51.200.0/24"]
+tunnel_address = "198.51.100.2/32"
+role = "visitor"
+allow_relay = true
+
+[peer]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+public_key = "REPLACE_WITH_SITE_A_PUBLIC_KEY"
+
+[frp]
+server_addr = "relay.example.com"
+server_port = 7000
+token = "REPLACE_WITH_FRP_TOKEN"
+shared_secret = "REPLACE_WITH_SHARED_SECRET"
+tls = true
+
+[wireguard]
+mode = "auto"
+private_key = "REPLACE_WITH_SITE_B_PRIVATE_KEY"
+
+[forwarding]
+authorize_enable = true
+mode = "nftables"
+```
+
+---
+
+### 关键配置检查要点
+
+- **服务连接与认证**：两端的 `server_addr` 与 `server_port` 必须指向同一个公网可达的 frps 服务端实例，且两端的 `token` 必须与服务端所配置的认证值完全一致；
+- **端对端预共享密钥**：两端的 `shared_secret` 必须完全相同，用于端对端 XTCP/STCP 信令握手时的鉴权校验；
+- **非对称密钥对**：站点 A 的公钥填写在站点 B 的 `public_key`，站点 B 的公钥填写在站点 A 的 `public_key`。

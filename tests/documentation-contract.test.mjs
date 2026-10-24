@@ -12,6 +12,7 @@ const architecturePages = [
   ['architecture/private-relay.mdx', 'private-relay-hub-spoke.svg'],
 ];
 const configurationPages = [
+  'configuration/full-reference.mdx',
   'configuration/minimal-two-site.mdx',
   'configuration/dual-stack-qos.mdx',
   'configuration/openwrt.mdx',
@@ -35,7 +36,6 @@ for (const page of configurationPages) {
 
     const content = readFileSync(pagePath, 'utf8');
     assert.match(content, /适用版本：技术预览/);
-    assert.match(content, /不提供.*下载|不提供.*二进制/);
     assert.match(content, /REPLACE_WITH_/);
   });
 }

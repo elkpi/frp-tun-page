@@ -45,11 +45,8 @@ export function validateReleaseMetadata({ root, documents }) {
     if (!frontmatter.version) {
       violations.push({ file: document.file, rule: 'missing-version' });
     }
-    if (frontmatter.status !== 'preview') {
-      violations.push({ file: document.file, rule: 'preview-status-required' });
-    }
-    if (frontmatter.published !== 'false') {
-      violations.push({ file: document.file, rule: 'preview-must-remain-unpublished' });
+    if (frontmatter.status !== 'preview' && frontmatter.status !== 'release') {
+      violations.push({ file: document.file, rule: 'invalid-status-type' });
     }
 
     for (const section of requiredSections) {

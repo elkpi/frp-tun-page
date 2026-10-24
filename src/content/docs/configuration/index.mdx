@@ -1,13 +1,14 @@
 ---
-title: 配置示例
-description: 只包含脱敏占位符的双站点、双栈/QoS 与 OpenWrt 配置资料。
+title: 配置指南与示例
+description: frp-tun 完整参数字典、最小双站点互联与双栈 QoS 进阶配置模板。
 version: preview
 ---
 
-> **适用版本：技术预览。** 本站不提供二进制下载；以下片段仅用于审查配置结构，不能直接用于生产环境。
+> **适用版本：技术预览 (v0.5.1)。** 本站提供的所有配置示例均经过严格脱敏处理，敏感私钥与 Token 均使用占位符表示。
 
-所有示例都使用文档保留地址、`example.com` 和 `REPLACE_WITH_*` 占位符。不要把私钥、token、真实公网地址、内网网段或生产日志提交到公开 Issue/Discussion。
+在此章节中，您可以按需查阅不同复杂度的配置方案：
 
-- [最小双站点](/configuration/minimal-two-site/)；
-- [双栈与 QoS](/configuration/dual-stack-qos/)；
-- [OpenWrt 注意事项](/configuration/openwrt/)。
+- [完整配置项说明 (参数字典)](/configuration/full-reference/)：包含全局 `schema_version`、`site`、`peer`、`frp`、`wireguard`、`forwarding`、`p2p` 及 `log` 的全部字段定义与默认值说明；
+- [最小双站点互联配置](/configuration/minimal-two-site/)：包含两端（Proxy 与 Visitor）互通必须配置的最小字段集，重点补齐了 `frp.server_addr`、`token` 及 `shared_secret` 等核心必配项；
+- [双栈与 QoS 选路配置](/configuration/dual-stack-qos/)：面向 IPv4/IPv6 双栈网络环境的协议族优先级、双栈温热备用与链路抖动平抑策略；
+- [OpenWrt 部署注意事项](/configuration/openwrt/)：OpenWrt 网关部署的接口权限与防火墙规则处理。

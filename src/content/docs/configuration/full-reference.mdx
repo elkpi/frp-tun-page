@@ -1,0 +1,117 @@
+---
+title: 完整配置项说明
+description: frp-tun 完整配置参数字典、默认值与生产脱敏模板。
+version: preview
+---
+
+> **适用版本：技术预览 (v0.5.1)。** 生产环境安全建议：配置文件权限请设为 `0600` (`chmod 600 config.toml`)，避免敏感凭据被本机非特权用户读取。
+
+`frp-tun` 采用标准 TOML 格式进行配置。以下为全量字段字典说明与生产级脱敏模板：
+
+```toml
+schema_version = 1
+
+# ==============================================================================
+# 1. 本端站点配置 (Local Site)
+# ==============================================================================
+[site]
+id = "site-a"                         # 本端唯一站点标识符 (必填，全局不可重复)
+networks = ["198.51.100.0/24"]        # 本端局域网网段 (CIDR 列表，用于向对端通告内网路由)
+tunnel_address = "198.51.100.1/32"    # 本端 WireGuard IPv4 点对点虚拟隧道地址 (必填)
+role = "proxy"                        # 角色: "proxy" (被动监听端/服务端) 或 "visitor" (主动发起端)
+allow_relay = true                    # 是否允许在 P2P 打洞失败时使用 STCP 中继兜底 (默认 true)
+mtu = 1420                            # WireGuard 接口 MTU (默认 1420，两端必须严格一致)
+
+# 可选：IPv6 隧道与动态前缀同步配置 (Dual-Stack & Dynamic IPv6 Prefix)
+[site.ipv6]
+enabled = false
+tunnel_address = "2001:db8:1::1/128"
+lan_interfaces = ["br-lan"]
+dynamic_source = false
+max_active_prefixes = 16
+max_history_prefixes = 256
+
+# ==============================================================================
+# 2. 对端站点配置 (Peer Site)
+# ==============================================================================
+[peer]
+id = "site-b"                         # 对端站点标识符 (必填)
+networks = ["198.51.200.0/24"]        # 对端局域网网段 (本端将自动安装指向这些网段的路由)
+tunnel_address = "198.51.100.2/32"    # 对端 WireGuard IPv4 虚拟隧道地址 (必填)
+role = "visitor"                      # 对端角色: 必须与本端互补 (本端 proxy 则对端 visitor，反之亦然)
+allow_relay = true                    # 对端是否允许中继兜底 (默认 true)
+mtu = 1420                            # 对端 MTU (两端必须严格一致)
+public_key = "REPLACE_WITH_PEER_PUBLIC_KEY" # 对端 WireGuard 静态公钥 (Base64)
+
+# 可选：对端 IPv6 隧道与动态前缀接收配置
+[peer.ipv6]
+enabled = false
+tunnel_address = "2001:db8:1::2/128"
+accept_dynamic = false
+sync_port = 51830
+
+# ==============================================================================
+# 3. FRP 信令与服务端配置 (FRP Signaling & Underlay)
+# ==============================================================================
+[frp]
+server_addr = "relay.example.com"     # 核心必配：frps 服务端公网 IP 或域名 (必填)
+server_port = 7000                    # 核心必配：frps 服务端口，通常为 7000 (必填)
+tls = true                            # 是否与 frps 启用 TLS 加密通道 (默认 true)
+
+# 凭据管理：内联字符串与独立文件路径互斥，生产部署强烈建议使用文件路径
+token = "REPLACE_WITH_FRP_TOKEN"      # frps 身份验证 Token
+# token_file = "/etc/frp-tun/frps-token"
+
+shared_secret = "REPLACE_WITH_SHARED_SECRET" # 对等端 XTCP/STCP 预共享密钥 (两端必须完全一致)
+# shared_secret_file = "/etc/frp-tun/secret-key"
+
+# 高级传输参数
+client_id = ""                        # 实例标识 (留空则根据 MAC 地址自动派生)
+transport_protocol = "quic"           # 与 frps 控制信令协议: "quic" (默认), "tcp", "kcp", "websocket"
+p2p_use_compression = false           # XTCP P2P 直连数据压缩 (默认 false)
+relay_use_compression = true          # STCP 中继兜底数据压缩 (默认 true)
+
+# ==============================================================================
+# 4. WireGuard 引擎配置 (WireGuard Underlay & Keys)
+# ==============================================================================
+[wireguard]
+mode = "auto"                         # 驱动模式: "auto" (优先内核模块，失败平滑回退 userspace), "kernel", "userspace"
+private_key = "REPLACE_WITH_PRIVATE_KEY" # 本机 WireGuard 私钥
+# private_key_file = "/etc/frp-tun/identity-key" # 生产推荐：独立私钥文件路径 (权限须为 0600)
+# interface_name = "ft0"              # 显式虚拟接口名 (留空则自动按 ft0, ft1... 分配)
+
+# ==============================================================================
+# 5. 内核转发与防火墙配置 (Forwarding & Firewall)
+# ==============================================================================
+[forwarding]
+authorize_enable = true               # 授权守护进程自动开启系统内核转发
+mode = "nftables"                     # 防火墙管理模式: "nftables" (默认，自动维护出入站规则) 或 "manual"
+
+# ==============================================================================
+# 6. P2P 打洞、双栈选路与 QoS (P2P Path & Multi-Path QoS)
+# ==============================================================================
+[p2p]
+prefer_family = "ipv4"                # 直连优先级: "ipv4" (默认) 或 "ipv6"
+listen_port = 51821                   # 固定公网 UDP 监听端口 (默认 51821)
+manage_firewall = false               # 是否授权自动管理公网入站规则
+nathole_coordinator = "frp"           # NAT 打洞协调机制: "frp" (默认) 或 "native"
+family_standby = false                # 是否开启双栈温热备用
+
+# 可选：多路径 QoS 测速与动态选路
+[p2p.qos]
+enabled = false                       # 是否开启动态 QoS 选路测速
+probe_interval = "1s"                 # QoS 探测间隔
+probe_timeout = "2s"                  # 探测超时阈值
+rtt_ratio_threshold = 1.3             # RTT 倒换比例门槛
+switchback_holddown = "30s"           # 优选路径回切观察期
+
+# ==============================================================================
+# 7. 日志配置 (Logging)
+# ==============================================================================
+[log]
+to = "console"                        # 日志输出去向: "console" 或指定文件路径
+level = "info"                        # 日志级别: "trace", "debug", "info", "warn", "error"
+max_days = 3                          # 日志保留天数
+max_size = "10MB"                     # 单文件轮转大小
+max_backups = 3                       # 保留历史切片数量
+```

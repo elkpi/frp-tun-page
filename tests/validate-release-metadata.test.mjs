@@ -8,7 +8,7 @@ async function loadValidator() {
   return import('../scripts/validate-release-metadata.mjs').catch(() => ({}));
 }
 
-test('accepts a gated preview release with all required evidence sections', async () => {
+test('accepts a release with all required evidence sections', async () => {
   const { validateReleaseMetadata } = await loadValidator();
 
   assert.equal(typeof validateReleaseMetadata, 'function');
@@ -17,7 +17,7 @@ test('accepts a gated preview release with all required evidence sections', asyn
   assert.deepEqual(result.violations, []);
 });
 
-test('requires preview release metadata to remain unpublished', async () => {
+test('requires release metadata to have a valid status', async () => {
   const { validateReleaseMetadata } = await loadValidator();
 
   assert.equal(typeof validateReleaseMetadata, 'function');
@@ -26,12 +26,12 @@ test('requires preview release metadata to remain unpublished', async () => {
     documents: [
       {
         file: 'invalid.mdx',
-        content: `---\nversion: v0.6.0-preview.1\nstatus: preview\npublished: true\n---\n## 摘要\n## 已验证范围\n## 已知限制\n## 升级\n## 回退\n## 验证\n## 撤回`,
+        content: `---\nversion: v0.6.0-preview.1\nstatus: unknown_status\npublished: true\n---\n## 摘要\n## 已验证范围\n## 已知限制\n## 升级\n## 回退\n## 验证\n## 撤回`,
       },
     ],
   });
 
-  assert.equal(result.violations[0].rule, 'preview-must-remain-unpublished');
+  assert.equal(result.violations[0].rule, 'invalid-status-type');
 });
 
 test('rejects unsupported platform claims in preview release notes', async () => {

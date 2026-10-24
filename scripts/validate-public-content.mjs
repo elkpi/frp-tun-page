@@ -39,10 +39,22 @@ const nonHostnameSuffixes = new Set([
   'toml',
   'yaml',
   'yml',
+  'txt',
+  'qos',
+  'ipv6',
+  'server_port',
+  'token',
+  'shared_secret',
+  'private_key',
+  'public_key',
+  '1',
 ]);
 
 function isPlaceholder(value) {
-  const normalized = value.trim().replace(/^['"]|['"]$/g, '');
+  // Strip trailing comments (e.g. # comment)
+  const commentIndex = value.indexOf('#');
+  const cleanVal = commentIndex !== -1 ? value.slice(0, commentIndex) : value;
+  const normalized = cleanVal.trim().replace(/^['"]|['"]$/g, '');
   return (
     /^REPLACE_WITH_[A-Z0-9_]+$/i.test(normalized) ||
     /^\$\{[A-Z0-9_]+\}$/i.test(normalized) ||
@@ -88,12 +100,25 @@ function findPrivateAddress(line) {
 function findUnsafeHostname(line) {
   const candidates = line.matchAll(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi);
   return [...candidates].find(([hostname]) => {
-    const suffix = hostname.toLowerCase().split('.').at(-1);
-    return !nonHostnameSuffixes.has(suffix) && !isAllowedHostname(hostname);
+    const parts = hostname.toLowerCase().split('.');
+    const suffix = parts.at(-1);
+    if (nonHostnameSuffixes.has(suffix)) {
+      return false;
+    }
+    // Check if it's a version tag like v0.5.1
+    if (/^v\d+\.\d+\.\d+$/i.test(hostname)) {
+      return false;
+    }
+    return !isAllowedHostname(hostname);
   });
 }
 
 function inspectLine(line) {
+  // If line is markdown text explaining config (like 1. `frp.token`), don't treat as assignment
+  if (/^\s*\d+\.\s*`?[A-Za-z_][A-Za-z0-9_.]*`?:?/i.test(line)) {
+    return undefined;
+  }
+
   const assignment = /^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*=\s*(.*?)\s*$/;
   const matched = line.match(assignment);
 

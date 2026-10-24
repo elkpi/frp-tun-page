@@ -1,0 +1,112 @@
+---
+title: frp-tun v0.5.1
+description: 打洞与选路优化、多架构 UPX 二进制发布及 SHA256 校验和。
+version: v0.5.1
+status: release
+published: true
+---
+
+> **正式发布版本**  
+> **发布日期**：2026 年 10 月 24 日  
+> **发布文件**：多架构原生 UPX 二进制包与校验和文件  
+> **使用许可**：遵循 [最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+---
+
+## 摘要
+
+`frp-tun v0.5.1` 重点优化了 STUN/NAT 发现、弱网恢复路径选择和边缘设备稳态探测能力。
+
+### 主要改进特性
+
+1. **STUN 并发竞速打洞**：DNS 与网络响应共享 500ms 发现预算，收集满 3 个独立样本后极速早停；
+2. **DNS 防抖与冷却**：5 分钟本地 DNS 缓存、30 秒失败冷却，消除重复解析负担；
+3. **蜂窝 CGNAT 容差预测**：自适应识别等差端口分配规律，执行 36～40 个目标端口的并发靶向预测打洞；
+4. **链路无感晋升与快速恢复**：冷启动与链路恢复时并行尝试获准路径；优先保障通信恢复，再按路径等级、地址族偏好平滑晋升；
+5. **首选私有 Hub 防抖回切**：引入 30 秒观察期与 6 次连续成功阈值，防止在临界网络下反复震荡；
+6. **稳态低功耗运行**：P2P 直连通道稳定后自动降低探针频次，减轻路由器 CPU 与系统负荷。
+
+---
+
+## 下载与二进制资产 (Downloads)
+
+所有预编译二进制包均使用 UPX 完成高比例无损压缩，体积约 3.1MB ~ 3.8MB，非常适合嵌入式路由器与边缘网关部署。
+
+| 架构 / 平台 | 文件名 | 下载链接 |
+|---|---|---|
+| **Linux amd64** (x86_64 服务器/软路由) | `frp-tun_v0.5.1_amd64` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_amd64) |
+| **Linux arm64** (aarch64 树莓派/NAS/新路由) | `frp-tun_v0.5.1_arm64` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_arm64) |
+| **Linux mips** (大端 MIPS 架构软硬件) | `frp-tun_v0.5.1_mips-softfloat` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_mips-softfloat) |
+| **Linux mipsle** (小端 MIPS 常见无线路由器) | `frp-tun_v0.5.1_mipsle-softfloat` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/frp-tun_v0.5.1_mipsle-softfloat) |
+| **完整校验和清单** | `checksums.txt` | [下载 checksums.txt](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.1/checksums.txt) |
+
+---
+
+## 验证
+
+下载后请务必比对 SHA256 校验和：
+
+```bash
+# 自动校验同目录下所有二进制
+sha256sum -c checksums.txt
+```
+
+### 官方 SHA256 校验清单
+
+```text
+7c61bfbeaf9be669c762512fec922d216503c80ae08fa2f592adbe817eb6180a  frp-tun_v0.5.1_amd64
+4e7b8c7fc63a32f085e7baec6b4d32a9cbf415ec4434ffae1a5472eecfe8216c  frp-tun_v0.5.1_arm64
+5928d17ee6a63529aa8784fc290302fa9bc5a5d13ba81005ca6585141e06db3f  frp-tun_v0.5.1_mips-softfloat
+c4ea9d6bc20e29b877e6fa54cf579603e9112fa1eb7a08bc796d10db9f18b32d  frp-tun_v0.5.1_mipsle-softfloat
+```
+
+---
+
+## 已验证范围
+
+- Go 1.27.1 全量测试、`go vet`、Python 自动化验证流水线、协议信令兼容性矩阵测试通过；
+- CI 环境下的 Race-enabled 竞态检查与四架构交叉构建校验通过；
+- Linux 基础网络命名空间、策略路由安装与 Bridge 数据流水线通过自动化冒烟测试。
+
+---
+
+## 已知限制
+
+- 本版本发布的自动化交叉编译资产不构成特定商业硬件平台的兼容性背书；
+- 物理 OpenWrt 设备高压负载测试、特定硬件下的非零 `SO_MARK` 特权验证与跨复杂多层 NAT 的穿透效果仍需在实际网络环境中验证；
+- 遵循 [EULA 免责声明](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)，不提供在线自动静默更新与可用性 SLA 保证。
+
+---
+
+## 升级
+
+1. 备份当前网关上的配置文件（如 `/etc/frp-tun/config.toml`）；
+2. 停止当前守护进程：
+   ```bash
+   systemctl stop frp-tun
+   ```
+3. 替换二进制并赋予执行权限：
+   ```bash
+   chmod +x frp-tun_v0.5.1_amd64
+   mv frp-tun_v0.5.1_amd64 /usr/local/bin/frp-tun
+   ```
+4. 启动服务并检查状态：
+   ```bash
+   systemctl start frp-tun
+   ```
+
+---
+
+## 回退
+
+若在升级后发现网络异常或打洞受阻：
+1. 停止服务：`systemctl stop frp-tun`；
+2. 将备份的历史版本二进制恢复至 `/usr/local/bin/frp-tun`；
+3. 清理残存策略路由与接口（如有）：`ip link delete frp-tun:0 2>/dev/null || true`；
+4. 重新启动历史版本守护进程。
+
+---
+
+## 撤回
+
+若发现重大安全漏洞或内核奔溃缺陷，项目维护者将在 Release 页面标明 `REVOKED — DO NOT USE`，下架对应二进制资产，并通过 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布安全修复通告。
