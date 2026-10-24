@@ -6,7 +6,7 @@
 
 **Architecture:** Astro and Starlight generate a fully static documentation site with root Chinese content and English core pages. Local Node scripts generate Mermaid SVG diagrams and reject unsafe public material before every test/build. CI builds and verifies only; a separately protected Pages workflow requires an explicit repository approval variable, so the unfinished legal release state cannot accidentally become a public deployment.
 
-**Tech Stack:** Node.js 22, npm, Astro, Starlight, TypeScript, Vitest, Mermaid CLI, GitHub Actions, GitHub Pages.
+**Tech Stack:** Node.js 22, npm, Astro, Starlight, TypeScript, Node.js built-in test runner, Mermaid CLI, GitHub Actions, GitHub Pages.
 
 **Spec:** `docs/superpowers/specs/2026-10-23-frp-tun-public-site-design.md`
 
