@@ -1,0 +1,59 @@
+direction: down
+
+site_a: 站点 A 网关 (frp-tun) {
+  style.fill: "#12394c"
+  style.stroke: "#4cc9f0"
+  style.font-color: "#ffffff"
+}
+
+site_b: 站点 B 网关 (frp-tun) {
+  style.fill: "#12394c"
+  style.stroke: "#4cc9f0"
+  style.font-color: "#ffffff"
+}
+
+site_c: 站点 C 网关 (frp-tun) {
+  style.fill: "#12394c"
+  style.stroke: "#4cc9f0"
+  style.font-color: "#ffffff"
+}
+
+hub: 私有 Hub 节点 {
+  style.stroke: "#f4a261"
+  style.fill: "#4a2840"
+  style.font-color: "#ffffff"
+
+  frps: frps / STCP relay {
+    style.fill: "#632d4b"
+    style.stroke: "#f4a261"
+    style.font-color: "#ffffff"
+  }
+}
+
+# 优先两两 P2P 直连
+site_a <-> site_b: "可用时优先 P2P 直连" {
+  style.stroke: "#4cc9f0"
+  style.stroke-width: 2
+}
+site_b <-> site_c: "可用时优先 P2P 直连" {
+  style.stroke: "#4cc9f0"
+  style.stroke-width: 2
+}
+site_c <-> site_a: "可用时优先 P2P 直连" {
+  style.stroke: "#4cc9f0"
+  style.stroke-width: 2
+}
+
+# P2P 受限时通过 Hub 转发密文
+site_a -> hub.frps: "P2P 受限时的加密载体" {
+  style.stroke: "#f4a261"
+  style.stroke-dash: 4
+}
+site_b -> hub.frps: "P2P 受限时的加密载体" {
+  style.stroke: "#f4a261"
+  style.stroke-dash: 4
+}
+site_c -> hub.frps: "P2P 受限时的加密载体" {
+  style.stroke: "#f4a261"
+  style.stroke-dash: 4
+}

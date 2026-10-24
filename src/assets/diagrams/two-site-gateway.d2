@@ -1,0 +1,68 @@
+direction: right
+
+lan_a: 站点 A LAN (内网客户端) {
+  style.fill: "#182635"
+  style.stroke: "#64748b"
+  style.font-color: "#f8fafc"
+}
+
+gateway_a: 站点 A Linux / OpenWrt 网关 {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  routing_a: 策略路由与隔离规则 {
+    style.fill: "#1e3a5f"
+    style.stroke: "#4cc9f0"
+    style.font-color: "#ffffff"
+  }
+  wg_a: WireGuard 接口 (frp-tun:uid) {
+    style.fill: "#0d5c73"
+    style.stroke: "#74d9f6"
+    style.font-color: "#ffffff"
+  }
+  bridge_a: Bridge + carrier (Underlay) {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+
+  routing_a -> wg_a: 加密前检查
+  wg_a -> bridge_a: 加密数据报
+}
+
+gateway_b: 站点 B Linux / OpenWrt 网关 {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  bridge_b: Bridge + carrier (Underlay) {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+  wg_b: WireGuard 接口 (frp-tun:uid) {
+    style.fill: "#0d5c73"
+    style.stroke: "#74d9f6"
+    style.font-color: "#ffffff"
+  }
+  routing_b: 策略路由与隔离规则 {
+    style.fill: "#1e3a5f"
+    style.stroke: "#4cc9f0"
+    style.font-color: "#ffffff"
+  }
+
+  bridge_b -> wg_b: 解密前交付
+  wg_b -> routing_b: 明文投递
+}
+
+lan_b: 站点 B LAN (内网服务) {
+  style.fill: "#182635"
+  style.stroke: "#64748b"
+  style.font-color: "#f8fafc"
+}
+
+lan_a -> gateway_a.routing_a: 业务流量
+gateway_a.bridge_a -> gateway_b.bridge_b: "P2P 直连优先 / STCP 回退" {
+  style.stroke: "#4cc9f0"
+  style.stroke-width: 3
+}
+gateway_b.routing_b -> lan_b: 到达目标网络

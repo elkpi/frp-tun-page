@@ -1,0 +1,67 @@
+direction: right
+
+site_a: 站点 A 网关 {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  wg_a: WireGuard overlay {
+    style.fill: "#0d5c73"
+    style.font-color: "#ffffff"
+    style.stroke: "#74d9f6"
+  }
+  bridge_a: Bridge pump {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+  carrier_a: frp carrier {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+
+  wg_a -> bridge_a: 已加密 UDP 数据报
+  bridge_a -> carrier_a
+}
+
+site_b: 站点 B 网关 {
+  style.stroke: "#4cc9f0"
+  style.fill: "#12394c"
+  style.font-color: "#ffffff"
+
+  carrier_b: frp carrier {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+  bridge_b: Bridge pump {
+    style.fill: "#1a4a63"
+    style.font-color: "#ffffff"
+  }
+  wg_b: WireGuard overlay {
+    style.fill: "#0d5c73"
+    style.font-color: "#ffffff"
+    style.stroke: "#74d9f6"
+  }
+
+  carrier_b -> bridge_b
+  bridge_b -> wg_b: 已加密 UDP 数据报
+}
+
+relay: 受控 frp 中继 (frps) {
+  style.stroke: "#f4a261"
+  style.fill: "#4a2840"
+  style.font-color: "#ffffff"
+}
+
+site_a.carrier_a -> site_b.carrier_b: "优先：XTCP / QUIC P2P 直连" {
+  style.stroke: "#4cc9f0"
+  style.stroke-width: 3
+}
+
+site_a.carrier_a -> relay: "P2P 不可用时：STCP relay" {
+  style.stroke: "#f4a261"
+  style.stroke-dash: 4
+}
+relay -> site_b.carrier_b: "STCP relay 密文转发" {
+  style.stroke: "#f4a261"
+  style.stroke-dash: 4
+}

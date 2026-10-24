@@ -1,0 +1,24 @@
+flowchart TB
+  subgraph A[站点 A]
+    A1[frp-tun 网关]
+  end
+  subgraph B[站点 B]
+    B1[frp-tun 网关]
+  end
+  subgraph C[站点 C]
+    C1[frp-tun 网关]
+  end
+
+  subgraph HUB[私有 Hub]
+    H1[frps / STCP relay]
+  end
+
+  A1 -.->|P2P 不可达时的加密载体| H1
+  B1 -.->|P2P 不可达时的加密载体| H1
+  C1 -.->|P2P 不可达时的加密载体| H1
+  A1 ==>|可用时优先直连| B1
+  B1 ==>|可用时优先直连| C1
+  C1 ==>|可用时优先直连| A1
+
+  classDef hub fill:#5b2c6f,color:#fff,stroke:#f4a261;
+  class H1 hub;

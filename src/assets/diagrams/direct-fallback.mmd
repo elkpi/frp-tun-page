@@ -1,0 +1,21 @@
+flowchart LR
+  subgraph A[站点 A 网关]
+    WGA[WireGuard overlay]
+    BA[Bridge pump]
+    CA[frp carrier]
+    WGA -->|已加密 UDP 数据报| BA --> CA
+  end
+
+  subgraph B[站点 B 网关]
+    WGB[WireGuard overlay]
+    BB[Bridge pump]
+    CB[frp carrier]
+    CB --> BB -->|已加密 UDP 数据报| WGB
+  end
+
+  CA ==>|优先：XTCP / QUIC P2P| CB
+  CA -.->|P2P 不可用时：STCP relay| Relay[受控 frp 中继]
+  Relay -.-> CB
+
+  classDef encrypted fill:#0d5c73,color:#fff,stroke:#4cc9f0;
+  class WGA,WGB encrypted;

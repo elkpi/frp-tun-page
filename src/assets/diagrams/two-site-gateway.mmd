@@ -1,0 +1,24 @@
+flowchart TB
+  LAN_A[站点 A LAN]
+  LAN_B[站点 B LAN]
+
+  subgraph GA[站点 A Linux / OpenWrt 网关]
+    RTA[策略路由与隔离规则]
+    WGA[WireGuard 接口]
+    BRA[Bridge + carrier]
+    RTA --> WGA --> BRA
+  end
+
+  subgraph GB[站点 B Linux / OpenWrt 网关]
+    RTB[策略路由与隔离规则]
+    WGB[WireGuard 接口]
+    BRB[Bridge + carrier]
+    BRB --> WGB --> RTB
+  end
+
+  LAN_A --> RTA
+  RTB --> LAN_B
+  BRA ==>|P2P 优先，STCP 回退| BRB
+
+  classDef guarded fill:#273469,color:#fff,stroke:#4cc9f0;
+  class RTA,RTB guarded;
