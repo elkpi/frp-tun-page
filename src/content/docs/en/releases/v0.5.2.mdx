@@ -1,0 +1,116 @@
+---
+title: frp-tun v0.5.2
+description: WAN renumbering automatic recovery, immutable epoch fencing, single-owner data path handover, and multi-architecture UPX binaries.
+slug: en/releases/v0.5.2
+version: v0.5.2
+status: release
+published: true
+---
+
+> **Official Release**  
+> **Release Date**: October 26, 2026  
+> **Release Artifacts**: Multi-architecture native UPX binary packages with checksum manifest  
+> **License**: Subject to the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+---
+
+## Summary
+
+`frp-tun v0.5.2` focuses on automatic perception of WAN renumbering in dynamic networking environments, steady promotion of P2P candidates, and adaptive graceful return.
+
+### Key Improvements
+
+1. **Netlink Address & Egress Fingerprint Observation**: Subscribes dynamically to Linux Netlink address and routing events, extracting egress interface index and default/direct route fingerprints, supporting 250ms debouncing, 30s polling fallback, and graceful degradation;
+2. **Per-Family Network Epochs & Resource Isolation**: Introduces independent NetworkEpoch and lease accounting, incrementing independently across IPv4/IPv6 changes to ensure smooth handover and bounded cleanup of stale resources (max 1 retired resource per family);
+3. **Immutable Epoch Fencing**: Binds asynchronous STUN probes, port mappings, and QUIC handshakes to immutable epochs, preventing cross-epoch stale results from polluting active candidate pools;
+4. **Candidate Data Plane Probing & Single-Owner Handover**: Stream candidate channels use independent Nonce Ping/Pong over user data streams for bi-directional verification; Supervisor triggers tokenized single-owner handover with a 5-second receive-only grace window on old relays to eliminate packet drop;
+5. **Asymmetric WireGuard Keepalive Heuristic**: Distinguishes Visitor and Proxy roles, configuring persistent keepalive exclusively on initiator endpoints to eliminate concurrent cross-handshake collisions;
+6. **Cross-Version Compatibility Assurance**: Adds controlled interoperability fixtures against historical v0.5.1 nodes to guarantee seamless mixed-version cluster operation.
+
+---
+
+## Downloads & Binary Assets
+
+All precompiled binaries are compressed using UPX lossless compression, yielding compact file sizes between 3.1MB and 3.8MB for embedded router and edge gateway deployment. For 32-bit ARM (armv7) gateways, `frp-tun_arm` and `frp-tun_armv7` compatibility download symlinks are also provided.
+
+| Architecture / Platform | Filename | Download Link |
+|---|---|---|
+| **Linux amd64** (x86_64 servers & soft routers) | `frp-tun_v0.5.2_amd64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.2/frp-tun_v0.5.2_amd64) |
+| **Linux arm64** (aarch64 Raspberry Pi, NAS, ARM routers) | `frp-tun_v0.5.2_arm64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.2/frp-tun_v0.5.2_arm64) |
+| **Linux arm** (armv7 32-bit routers & gateways) | `frp-tun_v0.5.2_arm` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.2/frp-tun_v0.5.2_arm) |
+| **Linux mips** (Big-endian MIPS routers & hardware) | `frp-tun_v0.5.2_mips-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.2/frp-tun_v0.5.2_mips-softfloat) |
+| **Linux mipsle** (Little-endian MIPS wireless routers) | `frp-tun_v0.5.2_mipsle-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.2/frp-tun_v0.5.2_mipsle-softfloat) |
+| **Complete Checksums Manifest** | `checksums.txt` | [Download checksums.txt](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.2/checksums.txt) |
+
+---
+
+## Verification
+
+Always verify the SHA256 checksum after downloading:
+
+```bash
+# Verify all binaries in current directory
+sha256sum -c checksums.txt
+```
+
+### Official SHA256 Manifest
+
+```text
+1581ae80cafce0f2288a6b4523ae06c84ee504969f89025455b9652f67ad5d0e  frp-tun_v0.5.2_amd64
+02d82e587796db3f914d0760a55387c1e3ff7531c0d14471beca382873638ab4  frp-tun_v0.5.2_arm
+e50954c37549fcb895f53180e3e7583fd47633d7d4901eeb5ec0a42610ae358c  frp-tun_v0.5.2_arm64
+36d8147584149b8f355600e61d16fe392061b0a470291267cb0a0b82a87f2d1b  frp-tun_v0.5.2_mips-softfloat
+bc35487ebb1d997ef8839b9380c114aa9a97683c425c2300393eca4f60746d42  frp-tun_v0.5.2_mipsle-softfloat
+```
+
+---
+
+## Verified Scope
+
+- Passed full Go 1.27.1 unit and integration test suite (including ThreadSanitizer data race detection) on Ubuntu Runner;
+- Cross-compiled five architectures (amd64, arm64, 32-bit armv7, mips, mipsle) with UPX compression and verification;
+- Verified mixed-version interoperability compatibility testing against historical v0.5.1 nodes;
+- Verified Linux Netlink address observation debouncing, periodic polling fallback, and graceful degradation routines.
+
+---
+
+## Known Limitations
+
+- Automated cross-compilation assets do not constitute commercial hardware platform endorsement;
+- Physical OpenWrt stress testing, non-zero `SO_MARK` privilege behavior, and complex multi-layer NAT traversal require evaluation in operator target networks;
+- Subject to the [EULA Disclaimers](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md); no automatic background update channel or SLA availability guarantee is provided.
+
+---
+
+## Upgrade
+
+1. Back up existing gateway configuration (e.g. `/etc/frp-tun/config.toml`);
+2. Stop the running daemon:
+   ```bash
+   systemctl stop frp-tun
+   ```
+3. Replace the binary and set executable permissions:
+   ```bash
+   chmod +x frp-tun_v0.5.2_amd64
+   mv frp-tun_v0.5.2_amd64 /usr/local/bin/frp-tun
+   ```
+4. Start the service and inspect runtime status:
+   ```bash
+   systemctl start frp-tun
+   ```
+
+---
+
+## Rollback
+
+If unexpected behavior occurs post-upgrade:
+1. Stop the service: `systemctl stop frp-tun`;
+2. Restore the previous verified binary to `/usr/local/bin/frp-tun`;
+3. Clean up residual policy routes and interfaces (if any): `ip link delete frp-tun:0 2>/dev/null || true`;
+4. Restart the previous daemon version.
+
+---
+
+## Revocation
+
+In the event of critical security flaws or kernel panics, maintainers will mark the release as `REVOKED — DO NOT USE`, remove affected binary assets, and issue a security bulletin via [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).
