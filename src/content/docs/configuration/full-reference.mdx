@@ -110,9 +110,9 @@ nathole_coordinator = "frp"           # NAT 打洞首选协调机制: "frp" (默
 nathole_frp_timeout = "10s"           # frp 协调阶段打洞预算 (默认 10s，范围 (0s,60s])
 nathole_native_timeout = "10s"        # native 阶段打洞预算 (默认 10s，范围 (0s,60s])
 
-# 可选：自定义 STUN 发现目标 (两种写法互斥；均未配置时使用内置公共 STUN 列表)
-# stun_server = "stun.example.com:3478" # 单个自定义 STUN 目标
-# stun_servers = ["stun.example.com:3478", "stun-alt.example.com:3478"] # 目标列表 (最多 8 项，格式 host:port，自动去重)
+# 可选：自定义 STUN 发现目标 (两种写法互斥；未配置时使用内置公共 STUN 列表，完整清单见下方"外连披露")
+# stun_server = "stun.example.com:3478" # 单个自定义 STUN 目标 (置于内置列表之前优先探测)
+# stun_servers = ["stun.example.com:3478", "stun-alt.example.com:3478"] # 目标列表 (最多 8 项；v0.5.2 仅校验未接入探测引擎)
 
 port_mapping = true                   # 网关端口映射 (UPnP/PCP) 自动发现 (默认 true)
 quic_keepalive_period = "10s"         # P2P QUIC 心跳保活周期 (默认 10s，范围 [0s,10m]；显式 "0s" 停用；旧键 keepalive_period 仍被接受)
@@ -154,8 +154,27 @@ max_backups = 3                       # 保留历史切片数量
 
 ## 字段补充说明
 
-- **STUN 发现目标**：`p2p.stun_server` 与 `p2p.stun_servers` 均未配置时，frp-tun 使用内置公共 STUN 目标列表（含国内低延迟节点）完成 NAT 类型识别与公网端口映射探测，对称 NAT 端口预测同样依赖这些样本。公共 STUN 不可达或需自建探测点的环境可配置自定义目标：两种写法互斥，列表最多 8 项，格式为 `host:port`（域名或 IP），自动去重。
+- **STUN 发现目标**：未配置 `p2p.stun_server` 时，frp-tun 使用内置公共 STUN 目标列表完成 NAT 类型识别与公网端口映射探测（完整清单见下方外连披露），对称 NAT 端口预测同样依赖这些样本；配置后，自定义目标置于内置列表之前优先探测，内置目标继续作为兜底样本。`p2p.stun_servers` 列表键在 v0.5.2 中仅完成配置校验，尚未接入探测引擎（为向前兼容保留），实际探测目标由 `p2p.stun_server` 与内置列表共同决定；两个键不可同时配置。
 - **打洞协调两阶段**：`p2p.nathole_coordinator` 只决定首选机制，另一机制会自动作为兜底阶段依次尝试；两阶段的预算分别由 `nathole_frp_timeout` 与 `nathole_native_timeout` 控制，单阶段超时后自动进入下一阶段。
 - **多对端组网**：单对端使用 `[peer]`；三台及以上 Hub-Spoke 网状组网改用 `[[peers]]` 数组依次声明多个对端。公网监听端口默认按 `p2p.listen_port + 序号` 递增分配，也可用 `peer.listen_port` 显式指定（多对端之间不得重复）。
 - **P2P 预共享密钥回退**：P2P 握手密钥按 `peer.shared_secret` → `peer.shared_secret_file` → `frp.shared_secret` → `frp.shared_secret_file` 的顺序解析，多对端部署可为每个对端配置独立密钥。
 - **旧键名兼容**：`p2p.keepalive_period` 与 `p2p.accept_grace` 分别是 `p2p.quic_keepalive_period` 与 `p2p.accept_grace_after_failed_punch` 的旧别名，仅在新键未设置时生效。
+
+## 内置 STUN 目标与外连披露
+
+为便于安全审计与合规评估，此处公开 frp-tun 会主动连接的全部内置第三方地址。native 打洞阶段会向以下公共 STUN 服务器发送标准 STUN Binding 请求（UDP 3478 端口，域名经 DNS 解析为 IPv4 地址）：
+
+| 内置目标 | 运营方 |
+| --- | --- |
+| `stun.miwifi.com:3478` | 小米 |
+| `stun.chat.bilibili.com:3478` | 哔哩哔哩 |
+| `stun.cloudflare.com:3478` | Cloudflare |
+| `stun.easyvoip.com:3478` | 公共 STUN 服务 |
+
+外连边界：
+
+- 除上表外，frp-tun 不包含任何其他内置第三方外连：frps 信令与中继地址来自 `[frp].server_addr`，打洞直连与私有中继目标均为用户配置的对端站点；
+- UPnP/PCP 端口映射发现仅与本局域网网关设备通信，不涉及公网第三方；
+- 程序不包含遥测、版本检查或统计上报；
+- 内置目标无法通过配置移除，严格外连管控的环境请在防火墙层面按上表放行或拦截相应域名。
+

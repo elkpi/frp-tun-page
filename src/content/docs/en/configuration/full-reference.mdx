@@ -112,9 +112,9 @@ nathole_frp_timeout = "10s"           # Hole-punch budget for the frp-coordinate
 nathole_native_timeout = "10s"        # Hole-punch budget for the native stage (default 10s, valid range (0s,60s])
 
 # Optional: custom STUN discovery targets (the two keys are mutually exclusive;
-# when both are unset, a built-in list of public STUN servers is used)
-# stun_server = "stun.example.com:3478" # Single custom STUN target
-# stun_servers = ["stun.example.com:3478", "stun-alt.example.com:3478"] # Target list (up to 8 entries, host:port format, deduplicated automatically)
+# when unset, a built-in list of public STUN servers is used — see the outbound disclosure below)
+# stun_server = "stun.example.com:3478" # Single custom STUN target (probed ahead of the built-in list)
+# stun_servers = ["stun.example.com:3478", "stun-alt.example.com:3478"] # Target list (up to 8 entries; validated but not yet wired into probing in v0.5.2)
 
 port_mapping = true                   # Automatic gateway port-mapping discovery via UPnP/PCP (default: true)
 quic_keepalive_period = "10s"         # P2P QUIC keep-alive period (default 10s, valid range [0s,10m]; explicit "0s" disables it; legacy key keepalive_period is still accepted)
@@ -157,8 +157,27 @@ max_backups = 3                       # Number of rotated log archives to retain
 
 ## Field Notes
 
-- **STUN discovery targets**: when neither `p2p.stun_server` nor `p2p.stun_servers` is configured, frp-tun probes NAT type and public port mappings against a built-in list of public STUN servers (including low-latency nodes in mainland China); symmetric-NAT port prediction relies on the same samples. Environments where public STUN is unreachable, or that prefer a self-hosted probe, can set custom targets: the two keys are mutually exclusive, the list accepts up to 8 `host:port` entries (hostname or IP), deduplicated automatically.
+- **STUN discovery targets**: when `p2p.stun_server` is unset, frp-tun probes NAT type and public port mappings against a built-in list of public STUN servers (full list in the outbound disclosure below); symmetric-NAT port prediction relies on the same samples. When set, the custom target is probed ahead of the built-in list, which remains as fallback samples. The `p2p.stun_servers` list key is validated but not yet wired into the probing engine in v0.5.2 (kept for forward compatibility); effective targets are decided by `p2p.stun_server` plus the built-in list. The two keys are mutually exclusive.
 - **Two-stage hole-punch coordination**: `p2p.nathole_coordinator` only selects the preferred mechanism; the other mechanism is attempted automatically as a fallback stage. Budgets are controlled independently by `nathole_frp_timeout` and `nathole_native_timeout`; on per-stage timeout, punching proceeds to the next stage.
 - **Multi-peer topologies**: use `[peer]` for a single peer; for three or more sites in a Hub-Spoke mesh, declare successive peers with the `[[peers]]` array. Public UDP listen ports default to `p2p.listen_port + index`, or can be set explicitly per peer via `peer.listen_port` (must be unique across peers).
 - **P2P pre-shared secret fallback**: the P2P handshake secret is resolved in the order `peer.shared_secret` → `peer.shared_secret_file` → `frp.shared_secret` → `frp.shared_secret_file`, so multi-peer deployments may assign a dedicated secret per peer.
 - **Legacy key aliases**: `p2p.keepalive_period` and `p2p.accept_grace` are legacy aliases of `p2p.quic_keepalive_period` and `p2p.accept_grace_after_failed_punch`, honored only when the new keys are unset.
+
+## Built-in STUN Targets & Outbound Disclosure
+
+To support security review and compliance auditing, this page discloses every third-party address that frp-tun connects to out of the box. During the native hole-punching stage, frp-tun sends standard STUN Binding requests (UDP port 3478; hostnames resolved to IPv4 addresses via DNS) to the following public STUN servers:
+
+| Built-in target | Operator |
+| --- | --- |
+| `stun.miwifi.com:3478` | Xiaomi |
+| `stun.chat.bilibili.com:3478` | Bilibili |
+| `stun.cloudflare.com:3478` | Cloudflare |
+| `stun.easyvoip.com:3478` | Public STUN service |
+
+Outbound boundaries:
+
+- Beyond the table above, frp-tun contains no other built-in third-party connections: frps signaling and relay addresses come from `[frp].server_addr`, while direct-hole-punching and private-relay targets are user-configured peers;
+- UPnP/PCP port-mapping discovery only communicates with the local LAN gateway device and never touches third-party public hosts;
+- The binary contains no telemetry, version checks, or analytics reporting;
+- The built-in targets cannot be removed through configuration; environments with strict egress control should allow or block the hostnames above at the firewall level.
+
