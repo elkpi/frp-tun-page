@@ -20,7 +20,7 @@ networks = ["198.51.100.0/24"]        # Local LAN subnets (CIDR list advertised 
 tunnel_address = "198.51.100.1/32"    # Local WireGuard point-to-point virtual tunnel IPv4 address (Required)
 role = "proxy"                        # Role: "proxy" (passive listener) or "visitor" (active dialer)
 allow_relay = true                    # Allow fallback to STCP relay when direct P2P fails (default: true)
-mtu = 1420                            # WireGuard MTU (default: 1420, must match across all peers)
+mtu = 1420                            # WireGuard MTU (default: 1420, valid range 576~9000, must match across all peers)
 
 # Optional: IPv6 Tunnel & Dynamic Prefix Synchronization
 [site.ipv6]
@@ -34,14 +34,25 @@ max_history_prefixes = 256
 # ==============================================================================
 # 2. Peer Site Configuration
 # ==============================================================================
+# Use [peer] for a single peer; for three or more sites in a Hub-Spoke mesh,
+# declare each peer with successive [[peers]] array entries instead.
 [peer]
 id = "site-b"                         # Remote peer identifier (Required)
 networks = ["198.51.200.0/24"]        # Remote LAN subnets (Routes will be installed toward these subnets)
 tunnel_address = "198.51.100.2/32"    # Peer WireGuard virtual tunnel IPv4 address (Required)
 role = "visitor"                      # Peer role: must be complementary ("proxy" vs "visitor")
 allow_relay = true                    # Allow peer to fall back to relay (default: true)
-mtu = 1420                            # Peer MTU (must match local MTU)
+mtu = 1420                            # Peer MTU (valid range 576~9000, must match local MTU)
 public_key = "REPLACE_WITH_PEER_PUBLIC_KEY" # Peer static WireGuard public key (Base64)
+# listen_port = 51822                 # Optional: peer public UDP listen port (defaults to p2p.listen_port + peer index, must be unique across peers)
+# shared_secret = "REPLACE_WITH_PEER_SHARED_SECRET" # Optional: dedicated P2P pre-shared secret for this peer (falls back to frp.shared_secret)
+# shared_secret_file = "/etc/frp-tun/peer-site-b-key" # Mutually exclusive with shared_secret
+
+# Optional: private relay egress candidates (this site dials through a Hub site; see "Architecture - Private Relay")
+# [peer.private_relay]
+# hubs = ["site-hub"]                 # Up to 8 candidate Hub site IDs (must be other configured peers, never this peer itself)
+# key = "REPLACE_WITH_RELAY_KEY"      # Dedicated 32-byte Base64 A-B authentication key (must not reuse frp.shared_secret)
+# key_file = "/etc/frp-tun/relay-site-b-key" # Mutually exclusive with key
 
 # Optional: Remote Peer IPv6 Tunnel
 [peer.ipv6]
@@ -62,12 +73,13 @@ tls = true                            # Enable TLS encrypted channel to frps (de
 token = "REPLACE_WITH_FRP_TOKEN"      # frps authentication token
 # token_file = "/etc/frp-tun/frps-token"
 
-shared_secret = "REPLACE_WITH_SHARED_SECRET" # Peer-to-peer XTCP/STCP pre-shared secret (must match on both sides)
+shared_secret = "REPLACE_WITH_SHARED_SECRET" # Peer-to-peer XTCP/STCP pre-shared secret (global default, overridable per peer; must match on both sides)
 # shared_secret_file = "/etc/frp-tun/secret-key"
 
 # Advanced transport parameters
 client_id = ""                        # Custom client ID (derived from hardware MAC if left empty)
-transport_protocol = "quic"           # frps signaling transport protocol: "quic" (default), "tcp", "kcp", "websocket"
+transport_protocol = "quic"           # frps signaling transport protocol: "quic" (default), "tcp", "kcp", "websocket", "wss"
+# trusted_ca_file = "/etc/frp-tun/frps-ca" # Optional: CA bundle used to verify the frps TLS certificate with self-signed/private CAs (when unset, certificate validity checks are skipped with a warning)
 p2p_use_compression = false           # Data compression for XTCP P2P direct channels (default: false)
 relay_use_compression = true          # Data compression for STCP relay fallback channels (default: true)
 
@@ -94,19 +106,46 @@ mode = "nftables"                     # Firewall manager: "nftables" (default, a
 prefer_family = "ipv4"                # Direct connection preference: "ipv4" (default) or "ipv6"
 listen_port = 51821                   # Fixed public UDP listening port (default: 51821)
 manage_firewall = false               # Authorize daemon to open external firewall port
-nathole_coordinator = "frp"           # NAT hole-punching coordination engine: "frp" (default) or "native"
+data_transport = "auto"               # Direct-channel data plane: "auto" (default, QUIC Datagram, negotiates transparently with legacy Stream peers) or "stream" (force Stream, compatible with v0.4.2)
+nathole_coordinator = "frp"           # Preferred NAT hole-punching coordinator: "frp" (default, frps-signaled) or "native" (local QUIC engine); the other mechanism is automatically used as fallback stage
+nathole_frp_timeout = "10s"           # Hole-punch budget for the frp-coordinated stage (default 10s, valid range (0s,60s])
+nathole_native_timeout = "10s"        # Hole-punch budget for the native stage (default 10s, valid range (0s,60s])
+
+# Optional: custom STUN discovery targets (the two keys are mutually exclusive;
+# when both are unset, a built-in list of public STUN servers is used)
+# stun_server = "stun.example.com:3478" # Single custom STUN target
+# stun_servers = ["stun.example.com:3478", "stun-alt.example.com:3478"] # Target list (up to 8 entries, host:port format, deduplicated automatically)
+
+port_mapping = true                   # Automatic gateway port-mapping discovery via UPnP/PCP (default: true)
+quic_keepalive_period = "10s"         # P2P QUIC keep-alive period (default 10s, valid range [0s,10m]; explicit "0s" disables it; legacy key keepalive_period is still accepted)
+accept_grace_after_failed_punch = "6s" # Grace period to accept late peer dial-ins after a fully missed punch (default 6s, valid range (0s,60s]; legacy key accept_grace is still accepted)
 family_standby = false                # Enable dual-stack warm standby channel
 
 # Optional: Multi-Path QoS Probing
 [p2p.qos]
 enabled = false                       # Enable dynamic QoS probing
-probe_interval = "1s"                 # RTT measurement interval
-probe_timeout = "2s"                  # Probe packet timeout threshold
-rtt_ratio_threshold = 1.3             # RTT switchover threshold ratio
-switchback_holddown = "30s"           # Stabilization observation holddown before switching back
+probe_interval = "1s"                 # RTT measurement interval (valid range 50ms~60s)
+probe_timeout = "2s"                  # Probe packet timeout threshold (valid range 50ms~60s)
+rtt_ratio_threshold = 1.3             # RTT switchover threshold ratio (valid range 1.05~10.0)
+rtt_min_diff = "15ms"                 # Absolute RTT difference switchover threshold (default 15ms, valid range 1ms~10s)
+loss_diff_threshold = 0.05            # Packet-loss difference switchover threshold (default 0.05, enabled when set above 0, valid range 0.01~1.0)
+switchback_holddown = "30s"           # Stabilization observation holddown before switching back (valid range 1s~3600s)
+# experimental_duplication = false    # Experimental: duplicate traffic across primary and standby paths, trading bandwidth for resilience against transient loss
 
 # ==============================================================================
-# 7. Logging & Diagnostics
+# 7. Private Relay Hub (Server Side)
+# ==============================================================================
+# Configure on sites acting as relay hubs; Spoke-side egress candidates are
+# declared under [peer.private_relay].
+[private_relay]
+enabled = false                       # Allow carrying end-to-end encrypted WireGuard traffic for other site pairs
+pairs = []                            # Authorized relay pairs, e.g. [["site-a", "site-b"]] (requires enabled = true and both ends configured as peers)
+max_sessions = 8                      # Maximum concurrent relay sessions (valid range 1~64)
+queue_bytes = 65536                   # Per-session relay queue size in bytes (valid range 4096~4194304)
+bytes_per_second = 8388608            # Per-session rate limit in bytes/second (valid range 16384~1073741824)
+
+# ==============================================================================
+# 8. Logging & Diagnostics
 # ==============================================================================
 [log]
 to = "console"                        # Log output destination: "console" or file path
@@ -115,3 +154,11 @@ max_days = 3                          # Log file retention days
 max_size = "10MB"                     # Log file rotation size threshold
 max_backups = 3                       # Number of rotated log archives to retain
 ```
+
+## Field Notes
+
+- **STUN discovery targets**: when neither `p2p.stun_server` nor `p2p.stun_servers` is configured, frp-tun probes NAT type and public port mappings against a built-in list of public STUN servers (including low-latency nodes in mainland China); symmetric-NAT port prediction relies on the same samples. Environments where public STUN is unreachable, or that prefer a self-hosted probe, can set custom targets: the two keys are mutually exclusive, the list accepts up to 8 `host:port` entries (hostname or IP), deduplicated automatically.
+- **Two-stage hole-punch coordination**: `p2p.nathole_coordinator` only selects the preferred mechanism; the other mechanism is attempted automatically as a fallback stage. Budgets are controlled independently by `nathole_frp_timeout` and `nathole_native_timeout`; on per-stage timeout, punching proceeds to the next stage.
+- **Multi-peer topologies**: use `[peer]` for a single peer; for three or more sites in a Hub-Spoke mesh, declare successive peers with the `[[peers]]` array. Public UDP listen ports default to `p2p.listen_port + index`, or can be set explicitly per peer via `peer.listen_port` (must be unique across peers).
+- **P2P pre-shared secret fallback**: the P2P handshake secret is resolved in the order `peer.shared_secret` → `peer.shared_secret_file` → `frp.shared_secret` → `frp.shared_secret_file`, so multi-peer deployments may assign a dedicated secret per peer.
+- **Legacy key aliases**: `p2p.keepalive_period` and `p2p.accept_grace` are legacy aliases of `p2p.quic_keepalive_period` and `p2p.accept_grace_after_failed_punch`, honored only when the new keys are unset.
