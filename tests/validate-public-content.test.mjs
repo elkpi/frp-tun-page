@@ -46,3 +46,12 @@ test('does not treat a Node.js version reference as a hostname', async () => {
 
   assert.deepEqual(result.violations, []);
 });
+
+test('allows the disclosed built-in STUN endpoints', async () => {
+  const { validatePublicContent } = await loadValidator();
+
+  assert.equal(typeof validatePublicContent, 'function');
+  const result = await validatePublicContent({ roots: [`${fixtures}safe-stun-disclosure.md`] });
+
+  assert.deepEqual(result.violations, []);
+});

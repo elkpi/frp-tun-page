@@ -25,6 +25,12 @@ const allowedHostnames = new Set([
   'frp-tun.elkpi.com',
   'github.com',
   'www.w3.org',
+  // Built-in public STUN endpoints, disclosed verbatim in the full
+  // configuration reference (outbound connection disclosure).
+  'stun.miwifi.com',
+  'stun.chat.bilibili.com',
+  'stun.cloudflare.com',
+  'stun.easyvoip.com',
 ]);
 
 const nonHostnameSuffixes = new Set([
