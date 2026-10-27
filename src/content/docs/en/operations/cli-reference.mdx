@@ -99,7 +99,7 @@ frp-tun run [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 
 ### 2.6 status (Instance Status Query)
 
-Connects to the control socket of a running instance and retrieves real-time operating metrics in structured JSON format.
+Connects to the control socket of a running instance and retrieves real-time operating metrics in structured JSON format (carrier transport mode, peer round-trip latencies, interface counters, and packet loss stats). In v0.5.3+, the status payload and peer entries expose the active `DialRole` (`"dialer"` or `"acceptor"`), and runtime logs include a `, dial=` tag for end-to-end link observability.
 
 ```bash
 frp-tun status [--socket /var/run/frp-tun.sock]

@@ -123,7 +123,7 @@ frp-tun status [--socket /var/run/frp-tun.sock]
 - `--socket <path>`: 运行中实例的控制套接字路径，默认为 `/var/run/frp-tun.sock`。
 
 **输出内容**：
-- 以结构化 JSON 格式返回，包含：节点链路模式（P2P 直连 / STCP 中继）、各对端心跳延迟、WireGuard 接口收发字节数与网络丢包统计（所有敏感密钥信息在输出前均经自动脱敏处理）。
+- 以结构化 JSON 格式返回，包含：节点链路模式（P2P 直连 / STCP 中继）、各对端心跳延迟、WireGuard 接口收发字节数与网络丢包统计（所有敏感密钥信息在输出前均经自动脱敏处理）。在 v0.5.3+ 中，状态顶层及对端条目（Peers）额外透出当前建联角色 `DialRole`（`"dialer"` 或 `"acceptor"`），运行日志行输出带有 `, dial=` 标记便于全链路可观测性审计。
 
 ---
 

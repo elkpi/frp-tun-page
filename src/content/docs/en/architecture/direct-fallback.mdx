@@ -11,3 +11,16 @@ version: preview
 WireGuard encrypts IP datagrams locally before packets leave the host. The bridge pump operates purely as an encrypted datagram shuttle between the local WireGuard socket and the active carrier, never inspecting IP payload data. Consequently, the STCP fallback path transports WireGuard ciphertext, never plaintext network traffic.
 
 "P2P Preferred" serves as a dynamic path-selection policy rather than an unconditional reachability guarantee. Operators must maintain an auditable STCP fallback configuration and independently verify tunnel failover and recovery behavior across their target network topology.
+
+---
+
+## Dialing Symmetry & Dynamic Initiator (v0.5.3)
+
+In conventional unidirectional architectures, direct connections are strictly initiated by a fixed role (such as the visitor site). If the proxy node resides behind an open/cone NAT while the visitor is constrained by asymmetric firewall policies or carrier-grade NAT (CGNAT), fixed dialing results in permanent traversal failure.
+
+`frp-tun v0.5.3` introduces native QUIC dialing symmetry:
+
+1. **Dynamic Single-Initiator State Machine**: Site roles determine initial initiation by default (visitor initiates, proxy accepts). After 3 consecutive terminal traversal failures, the dialing direction automatically flips and triggers an immediate retry; direction changes are stabilized with a 2-minute hysteresis window and automatically reset upon topology alterations or WAN renumbering;
+2. **Dual-End Resident QUIC Listeners & Conflict Resolution**: Both sites maintain active listeners on loopback UDP sockets, enabling either endpoint to function as an acceptor. When concurrent dialing creates a race condition, connections deterministically converge based on global SiteID lexicographical ordering (highest SiteID wins), cleanly closing the losing session;
+3. **Initiator-Driven Stream Handshake**: Real-time dialing direction (rather than preconfigured site role) drives TLS authentication frame write sequencing, eliminating deadlocks where empty dialer streams caused acceptors to hang indefinitely in stream acceptance;
+4. **CGNAT Port-Block Endpoint Admission**: For peers behind CGNAT port blocks, endpoints under the same verified peer IP that pass bidirectional QUIC cryptographic authentication are admitted, preventing valid hole-punch results from being falsely dropped back to relay transport.
