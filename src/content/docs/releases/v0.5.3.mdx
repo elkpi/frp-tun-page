@@ -24,7 +24,7 @@ published: true
 2. **自研 QUIC 直连建联方向对称化（Peer 对等）**：引入动态单发起方状态机，默认由站点角色决定起始发起方（visitor 发起、proxy 接受），连续 3 次终结性失败自动翻转建联方向，翻转事件立即触发首拨重试；配置 2 分钟迟滞防抖，网络拓扑变化与改号时自动重置回默认方向；
 3. **双端常驻 QUIC 监听与冲突收敛**：visitor 与 proxy 角色均在 loopback UDP 套接字上常驻监听，任一端可作为 acceptor 接受入站。双 dialer 同时拨号时由 `openDialerSession` 收集候选，基于全局 SiteID 字典序（大者胜出）确定性保留一条连接，无副作用关闭败者；
 4. **流握手首帧防死锁**：重构 `authenticateWithOrder`，由建联方向（而不是站点角色）决定 TLS/认证首写顺序，消除 dialer 空流不发 STREAM 帧导致 acceptor `AcceptStream` 永久阻塞的死锁缺陷；
-5. **全链路 `DialRole` 可观测性**：`carrier.Session` 与 `supervisor.Status`（顶层及 `Peers[]`）透出 `DialRole`（`"dialer" / "acceptor"`），会话建立日志行输出 `, dial=` 标记；
+5. **全链路 `DialRole` 可观测性**：会话（Session）与运行状态（Status，顶层及 `Peers[]`）透出 `DialRole`（`"dialer" / "acceptor"`），会话建立日志行输出 `, dial=` 标记；
 6. **严格向后兼容与平稳回退**：wire 协议保持严格 canonical 编码兼容；中继路径（STCP/XTCP 经 frps）完整保留原有 visitor/proxy 语义及私有中继 Preferred Hub 优选逻辑。
 
 ---
