@@ -1,0 +1,116 @@
+---
+title: frp-tun v0.5.3
+description: 自研 QUIC 直连建联方向对称化、端口块 NAT 修复、流握手首帧防死锁与全链路 DialRole 可观测性。
+slug: releases/v0.5.3
+version: v0.5.3
+status: release
+published: true
+---
+
+> **正式发布版本**  
+> **发布日期**：2026 年 10 月 27 日  
+> **发布文件**：多架构原生 UPX 二进制包与校验和文件  
+> **使用许可**：遵循 [最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+---
+
+## 摘要
+
+`frp-tun v0.5.3` 重点实现自研 native QUIC P2P 直连链路的端到端对等发起（建联方向对称化），彻底解决单向固定发起导致的不可逆 NAT 穿透失败；同时修复端口块（CGNAT）打洞成功端点被新鲜度门槛误杀卡在中继的缺陷。
+
+### 主要改进特性
+
+1. **端口块 NAT 新鲜度误杀修复**：针对对端处于 CGNAT 端口块环境，放行已通过 QUIC 双向加密认证的同一对端 IP 映射端点，丢弃日志精确打印失败原因，彻底解决打洞命中后仍卡死在 relay 的缺陷；
+2. **自研 QUIC 直连建联方向对称化（Peer 对等）**：引入动态单发起方状态机，默认由站点角色决定起始发起方（visitor 发起、proxy 接受），连续 3 次终结性失败自动翻转建联方向，翻转事件立即触发首拨重试；配置 2 分钟迟滞防抖，网络拓扑变化与改号时自动重置回默认方向；
+3. **双端常驻 QUIC 监听与冲突收敛**：visitor 与 proxy 角色均在 loopback UDP 套接字上常驻监听，任一端可作为 acceptor 接受入站。双 dialer 同时拨号时由 `openDialerSession` 收集候选，基于全局 SiteID 字典序（大者胜出）确定性保留一条连接，无副作用关闭败者；
+4. **流握手首帧防死锁**：重构 `authenticateWithOrder`，由建联方向（而不是站点角色）决定 TLS/认证首写顺序，消除 dialer 空流不发 STREAM 帧导致 acceptor `AcceptStream` 永久阻塞的死锁缺陷；
+5. **全链路 `DialRole` 可观测性**：`carrier.Session` 与 `supervisor.Status`（顶层及 `Peers[]`）透出 `DialRole`（`"dialer" / "acceptor"`），会话建立日志行输出 `, dial=` 标记；
+6. **严格向后兼容与平稳回退**：wire 协议保持严格 canonical 编码兼容；中继路径（STCP/XTCP 经 frps）完整保留原有 visitor/proxy 语义及私有中继 Preferred Hub 优选逻辑。
+
+---
+
+## 下载与二进制资产 (Downloads)
+
+所有预编译二进制包均使用 UPX 完成高比例无损压缩，体积约 3.1MB ~ 3.8MB，非常适合嵌入式路由器与边缘网关部署。针对 32 位 ARM (armv7) 架构网关提供 `frp-tun_arm` 与 `frp-tun_armv7` 兼容下载软链接。
+
+| 架构 / 平台 | 文件名 | 下载链接 |
+|---|---|---|
+| **Linux amd64** (x86_64 服务器/软路由) | `frp-tun_v0.5.3_amd64` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_amd64) |
+| **Linux arm64** (aarch64 树莓派/NAS/新路由) | `frp-tun_v0.5.3_arm64` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_arm64) |
+| **Linux arm** (armv7 32 位路由器/网关) | `frp-tun_v0.5.3_arm` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_arm) |
+| **Linux mips** (大端 MIPS 架构软硬件) | `frp-tun_v0.5.3_mips-softfloat` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_mips-softfloat) |
+| **Linux mipsle** (小端 MIPS 常见无线路由器) | `frp-tun_v0.5.3_mipsle-softfloat` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_mipsle-softfloat) |
+| **完整校验和清单** | `checksums.txt` | [下载 checksums.txt](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/checksums.txt) |
+
+---
+
+## 验证
+
+下载后请务必比对 SHA256 校验和：
+
+```bash
+# 自动校验同目录下所有二进制
+sha256sum -c checksums.txt
+```
+
+### 官方 SHA256 校验清单
+
+```text
+7a3018b5758a279928a44fc51c9243c4422b9f2b291fd76358edd9fa091511f0  frp-tun_v0.5.3_amd64
+07128bdd3f9c441559a01c4d57b56cb8287a7744bb1d099ba67125ef9c224942  frp-tun_v0.5.3_arm
+1971b3d0af9726102bbc52971ffcaf8ec7221a16b7cc3c2c65301b9fc0fb4064  frp-tun_v0.5.3_arm64
+fcfd80aed65cceaf4d4f59d1cc9b85899bf4118afa71b3320f24dc40ef5022f3  frp-tun_v0.5.3_mipsle-softfloat
+554beb76b16157e273c4f20a321526a45fac611ff930f8dff624c0103b1cbadb  frp-tun_v0.5.3_mips-softfloat
+```
+
+---
+
+## 已验证范围
+
+- 全量 Go 单元与集成测试（包含真实反向 NAT 拓扑翻转验证 `TestReverseNATSymmetricDial`）全部通过；
+- 五架构（amd64、arm64、32 位 armv7、mips、mipsle）交叉构建并经 UPX 压缩校验通过；
+- 与历史版本混合组网兼容性测试验证通过；
+- 端口块 NAT 端点放行机制与实机打洞验证通过。
+
+---
+
+## 已知限制
+
+- 本版本发布的自动化交叉编译资产不构成特定商业硬件平台的兼容性背书；
+- 物理 OpenWrt 设备高压负载测试、特定硬件下的非零 `SO_MARK` 特权验证与跨复杂多层 NAT 的穿透效果仍需在实际网络环境中验证；
+- 遵循 [EULA 免责声明](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)，不提供在线自动静默更新与可用性 SLA 保证。
+
+---
+
+## 升级
+
+1. 备份当前网关上的配置文件（如 `/etc/frp-tun/config.toml`）；
+2. 停止当前守护进程：
+   ```bash
+   systemctl stop frp-tun
+   ```
+3. 替换二进制并赋予执行权限：
+   ```bash
+   chmod +x frp-tun_v0.5.3_amd64
+   mv frp-tun_v0.5.3_amd64 /usr/local/bin/frp-tun
+   ```
+4. 启动服务并检查状态：
+   ```bash
+   systemctl start frp-tun
+   ```
+
+---
+
+## 回退
+
+若在升级后发现网络异常或打洞受阻：
+1. 停止服务：`systemctl stop frp-tun`；
+2. 将备份的历史版本二进制恢复至 `/usr/local/bin/frp-tun`；
+3. 清理残存策略路由与接口（如有）：`ip link delete frp-tun:0 2>/dev/null || true`；
+4. 重新启动历史版本守护进程。
+
+---
+
+## 撤回
+
+若发现重大安全漏洞或内核奔溃缺陷，项目维护者将在 Release 页面标明 `REVOKED — DO NOT USE`，下架对应二进制资产，并通过 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布安全修复通告。
