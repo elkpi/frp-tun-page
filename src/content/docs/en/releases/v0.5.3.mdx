@@ -1,0 +1,116 @@
+---
+title: frp-tun v0.5.3
+description: QUIC direct connection symmetric dialing, CGNAT port block NAT fix, stream handshake deadlock prevention, and DialRole observability.
+slug: en/releases/v0.5.3
+version: v0.5.3
+status: release
+published: true
+---
+
+> **Official Release**  
+> **Release Date**: October 27, 2026  
+> **Release Artifacts**: Multi-architecture native UPX binary packages with checksum manifest  
+> **License**: Subject to the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+---
+
+## Summary
+
+`frp-tun v0.5.3` focuses on end-to-end peer dialing symmetry for native QUIC P2P direct connectivity, resolving irreversible NAT traversal failures caused by unidirectional fixed initiation, alongside fixing CGNAT port-block endpoint freshness drops that stranded successful hole-punches in relay mode.
+
+### Key Improvements
+
+1. **CGNAT Port-Block NAT Freshness Fix**: For peers behind CGNAT port blocks, endpoints under the same peer IP authenticated by bidirectional QUIC encryption are admitted; failure drop logging now outputs precise drop predicates, completely resolving the defect where valid punches stayed stranded on relay;
+2. **Native QUIC P2P Direct Dialing Symmetry (Peer-to-Peer)**: Introduces a dynamic single-initiator state machine where site roles determine default initiation (visitor dials, proxy accepts). After 3 consecutive terminal failures, the initiation direction automatically inverts and immediately triggers a fresh dial attempt, guarded by a 2-minute hysteresis window and auto-resetting on network changes or WAN renumbering;
+3. **Dual-End Resident QUIC Listeners & Conflict Resolution**: Both visitor and proxy roles maintain resident listeners on loopback UDP sockets, allowing either peer to act as an acceptor. When concurrent dialing creates race conditions, candidate sessions are collected and deterministically converged by global SiteID lexicographical order (highest wins), gracefully terminating the loser without side effects;
+4. **Initiator-Driven Stream Handshake Deadlock Elimination**: Re-engineers `authenticateWithOrder` so that connection direction (rather than static site role) dictates TLS/authentication write precedence, eliminating deadlocks where empty dialer streams caused acceptors to block indefinitely in `AcceptStream`;
+5. **End-to-End `DialRole` Observability**: `carrier.Session` and `supervisor.Status` (top-level and `Peers[]`) expose `DialRole` (`"dialer"` / `"acceptor"`), and session establishment log lines output a `, dial=` tag;
+6. **Strict Backward Compatibility & Seamless Fallback**: Wire protocol preserves strict canonical encoding compatibility; relay transport (STCP/XTCP via frps) retains full legacy visitor/proxy semantics and private relay Preferred Hub prioritization.
+
+---
+
+## Downloads & Binary Assets
+
+All precompiled binaries are compressed using UPX lossless compression, yielding compact file sizes between 3.1MB and 3.8MB for embedded router and edge gateway deployment. For 32-bit ARM (armv7) gateways, `frp-tun_arm` and `frp-tun_armv7` compatibility download symlinks are also provided.
+
+| Architecture / Platform | Filename | Download Link |
+|---|---|---|
+| **Linux amd64** (x86_64 servers & soft routers) | `frp-tun_v0.5.3_amd64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_amd64) |
+| **Linux arm64** (aarch64 Raspberry Pi, NAS, ARM routers) | `frp-tun_v0.5.3_arm64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_arm64) |
+| **Linux arm** (armv7 32-bit routers & gateways) | `frp-tun_v0.5.3_arm` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_arm) |
+| **Linux mips** (Big-endian MIPS routers & hardware) | `frp-tun_v0.5.3_mips-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_mips-softfloat) |
+| **Linux mipsle** (Little-endian MIPS wireless routers) | `frp-tun_v0.5.3_mipsle-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/frp-tun_v0.5.3_mipsle-softfloat) |
+| **Complete Checksums Manifest** | `checksums.txt` | [Download checksums.txt](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.3/checksums.txt) |
+
+---
+
+## Verification
+
+Always verify the SHA256 checksum after downloading:
+
+```bash
+# Verify all binaries in current directory
+sha256sum -c checksums.txt
+```
+
+### Official SHA256 Manifest
+
+```text
+7a3018b5758a279928a44fc51c9243c4422b9f2b291fd76358edd9fa091511f0  frp-tun_v0.5.3_amd64
+07128bdd3f9c441559a01c4d57b56cb8287a7744bb1d099ba67125ef9c224942  frp-tun_v0.5.3_arm
+1971b3d0af9726102bbc52971ffcaf8ec7221a16b7cc3c2c65301b9fc0fb4064  frp-tun_v0.5.3_arm64
+fcfd80aed65cceaf4d4f59d1cc9b85899bf4118afa71b3320f24dc40ef5022f3  frp-tun_v0.5.3_mipsle-softfloat
+554beb76b16157e273c4f20a321526a45fac611ff930f8dff624c0103b1cbadb  frp-tun_v0.5.3_mips-softfloat
+```
+
+---
+
+## Verified Scope
+
+- Passed full Go 1.27.1 unit and integration test suite (including reverse-NAT topology dial inversion `TestReverseNATSymmetricDial`) on Ubuntu Runner;
+- Cross-compiled five architectures (amd64, arm64, 32-bit armv7, mips, mipsle) with UPX compression and verification;
+- Verified mixed-version interoperability compatibility testing against historical cluster nodes;
+- Verified CGNAT port-block mapping endpoint admission and hole-punching on real network topologies.
+
+---
+
+## Known Limitations
+
+- Automated cross-compilation assets do not constitute commercial hardware platform endorsement;
+- Physical OpenWrt stress testing, non-zero `SO_MARK` privilege behavior, and complex multi-layer NAT traversal require evaluation in operator target networks;
+- Subject to the [EULA Disclaimers](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md); no automatic background update channel or SLA availability guarantee is provided.
+
+---
+
+## Upgrade
+
+1. Back up existing gateway configuration (e.g. `/etc/frp-tun/config.toml`);
+2. Stop the running daemon:
+   ```bash
+   systemctl stop frp-tun
+   ```
+3. Replace the binary and set executable permissions:
+   ```bash
+   chmod +x frp-tun_v0.5.3_amd64
+   mv frp-tun_v0.5.3_amd64 /usr/local/bin/frp-tun
+   ```
+4. Start the service and inspect runtime status:
+   ```bash
+   systemctl start frp-tun
+   ```
+
+---
+
+## Rollback
+
+If unexpected behavior occurs post-upgrade:
+1. Stop the service: `systemctl stop frp-tun`;
+2. Restore the previous verified binary to `/usr/local/bin/frp-tun`;
+3. Clean up residual policy routes and interfaces (if any): `ip link delete frp-tun:0 2>/dev/null || true`;
+4. Restart the previous daemon version.
+
+---
+
+## Revocation
+
+In the event of critical security flaws or kernel panics, maintainers will mark the release as `REVOKED — DO NOT USE`, remove affected binary assets, and issue a security bulletin via [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).
