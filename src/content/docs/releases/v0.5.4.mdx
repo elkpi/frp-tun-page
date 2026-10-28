@@ -1,0 +1,114 @@
+---
+title: frp-tun v0.5.4
+description: 空候选恢复循环抑制、网络纪元退避防护与准备日志降噪。
+slug: releases/v0.5.4
+version: v0.5.4
+status: release
+published: true
+---
+
+> **正式发布版本**  
+> **发布日期**：2026 年 10 月 28 日  
+> **发布文件**：多架构原生 UPX 二进制包与校验和文件  
+> **使用许可**：遵循 [最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+---
+
+## 摘要
+
+`frp-tun v0.5.4` 是一个关键的稳定性和恢复机制增强版本。本版本彻底解决了在无外部 STUN 候选或本地未发现直连候选端点时，节点可能陷入高频空候选恢复通知与重复准备的忙循环（Recovery Event Storm）缺陷，引入基于网络纪元（Network Epoch）的退避锁定，并大幅净化运行日志。
+
+### 主要改进特性
+
+1. **空候选恢复循环与事件风暴抑制**：优化 `refreshLocalUpdate` 恢复事件触发判定，仅在协议族的准备状态（`Prepared`）发生真实翻转或生成新一代有效候选集时才向 supervisor 广播 `signalRecovery`，彻底消除由于无候选导致的无限连续恢复调用；
+2. **网络纪元（Network Epoch）退避重试防护**：在 `prepareFamilyLoop` 中对无有效候选（`errNoLocalCandidates`）场景增加纪元一致性校验。在退避等待期间，若本地网络拓扑/纪元未发生变化，即使收到重复触发请求也不打断退避定时器，只有在网络真实变动或定时器超时后才发起重试，防止突发重试击穿退避；
+3. **准备日志降噪与审计优化**：将空候选阶段性未就绪从严重错误日志中剥离，避免无候选正常退避期间刷屏污染运行日志；
+4. **测试覆盖与边界收敛**：补充 `empty_candidate_recovery_test.go` 针对 peering engine 与 supervisor 的端到端测试，覆盖无 STUN 候选、负缓存过期及突发并发请求等严苛场景。
+
+---
+
+## 下载与二进制资产 (Downloads)
+
+所有预编译二进制包均使用 UPX 完成高比例无损压缩，体积约 3.1MB ~ 3.8MB，非常适合嵌入式路由器与边缘网关部署。针对 32 位 ARM (armv7) 架构网关提供 `frp-tun_arm` 与 `frp-tun_armv7` 兼容下载软链接。
+
+| 架构 / 平台 | 文件名 | 下载链接 |
+|---|---|---|
+| **Linux amd64** (x86_64 服务器/软路由) | `frp-tun_v0.5.4_amd64` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.4/frp-tun_v0.5.4_amd64) |
+| **Linux arm64** (aarch64 树莓派/NAS/新路由) | `frp-tun_v0.5.4_arm64` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.4/frp-tun_v0.5.4_arm64) |
+| **Linux arm** (armv7 32 位路由器/网关) | `frp-tun_v0.5.4_arm` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.4/frp-tun_v0.5.4_arm) |
+| **Linux mips** (大端 MIPS 架构软硬件) | `frp-tun_v0.5.4_mips-softfloat` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.4/frp-tun_v0.5.4_mips-softfloat) |
+| **Linux mipsle** (小端 MIPS 常见无线路由器) | `frp-tun_v0.5.4_mipsle-softfloat` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.4/frp-tun_v0.5.4_mipsle-softfloat) |
+| **完整校验和清单** | `checksums.txt` | [下载 checksums.txt](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.4/checksums.txt) |
+
+---
+
+## 验证
+
+下载后请务必比对 SHA256 校验和：
+
+```bash
+# 自动校验同目录下所有二进制
+sha256sum -c checksums.txt
+```
+
+### 官方 SHA256 校验清单
+
+```text
+c5ee9163a3e904463fe20e1050ea5ea4bc68b97950b4bb0c810d5949e729419d  frp-tun_v0.5.4_amd64
+8e949d8f60e948d3fe278c9b8caee0ef49a6f8af201d4b5548f1599f2c493882  frp-tun_v0.5.4_arm
+226e62a8e25f82e672c511688db2631b7fe305bd967649122a07b74793fee84c  frp-tun_v0.5.4_arm64
+692d2de6558c8a2bdb87d773e5cbb1e2351b19f4cbec68bbc538fca80ad31b6a  frp-tun_v0.5.4_mipsle-softfloat
+b8f9cef35cc77936cb12c61ac6c90834c36dbfedeb65c2e97b83a97dc473336c  frp-tun_v0.5.4_mips-softfloat
+```
+
+---
+
+## 已验证范围
+
+- 全量 Go 单元与集成测试（包含空候选防风暴测试 `TestEmptyCandidatesDoNotCreateRecoveryEventStorm` 与 supervisor 循环防护测试 `TestSupervisorDoesNotLoopOnEmptyCandidates`）全部通过；
+- 五架构（amd64、arm64、32 位 armv7、mips、mipsle）交叉构建并经 UPX 压缩校验通过；
+- 与历史版本混合组网兼容性测试验证通过；
+- 空候选场景网络纪元一致性与指数退避定时器验证通过。
+
+---
+
+## 已知限制
+
+- 本版本发布的自动化交叉编译资产不构成特定商业硬件平台的兼容性背书；
+- 物理 OpenWrt 设备高压负载测试、特定硬件下的非零 `SO_MARK` 特权验证与跨复杂多层 NAT 的穿透效果仍需在实际网络环境中验证；
+- 遵循 [EULA 免责声明](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)，不提供在线自动静默更新与可用性 SLA 保证。
+
+---
+
+## 升级
+
+1. 备份当前网关上的配置文件（如 `/etc/frp-tun/config.toml`）；
+2. 停止当前守护进程：
+   ```bash
+   systemctl stop frp-tun
+   ```
+3. 替换二进制并赋予执行权限：
+   ```bash
+   chmod +x frp-tun_v0.5.4_amd64
+   mv frp-tun_v0.5.4_amd64 /usr/local/bin/frp-tun
+   ```
+4. 启动服务并检查状态：
+   ```bash
+   systemctl start frp-tun
+   ```
+
+---
+
+## 回退
+
+若在升级后发现网络异常或打洞受阻：
+1. 停止服务：`systemctl stop frp-tun`；
+2. 将备份的历史版本二进制恢复至 `/usr/local/bin/frp-tun`；
+3. 清理残存策略路由与接口（如有）：`ip link delete frp-tun:0 2>/dev/null || true`；
+4. 重新启动历史版本守护进程。
+
+---
+
+## 撤回
+
+若发现重大安全漏洞或内核奔溃缺陷，项目维护者将在 Release 页面标明 `REVOKED — DO NOT USE`，下架对应二进制资产，并通过 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布安全修复通告。
