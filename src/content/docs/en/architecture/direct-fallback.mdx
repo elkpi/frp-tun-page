@@ -24,3 +24,15 @@ In conventional unidirectional architectures, direct connections are strictly in
 2. **Dual-End Resident QUIC Listeners & Conflict Resolution**: Both sites maintain active listeners on loopback UDP sockets, enabling either endpoint to function as an acceptor. When concurrent dialing creates a race condition, connections deterministically converge based on global SiteID lexicographical ordering (highest SiteID wins), cleanly closing the losing session;
 3. **Initiator-Driven Stream Handshake**: Real-time dialing direction (rather than preconfigured site role) drives TLS authentication frame write sequencing, eliminating deadlocks where empty dialer streams caused acceptors to hang indefinitely in stream acceptance;
 4. **CGNAT Port-Block Endpoint Admission**: For peers behind CGNAT port blocks, endpoints under the same verified peer IP that pass bidirectional QUIC cryptographic authentication are admitted, preventing valid hole-punch results from being falsely dropped back to relay transport.
+
+---
+
+## Empty Candidate Recovery Suppression & Epoch Backoff (v0.5.4)
+
+In networks with restricted interfaces or temporarily unreachable STUN servers, local peer candidate discovery may yield zero endpoints. In previous versions, empty candidate outcomes could still emit readiness signals, prompting upper-level supervisors to repeatedly re-request family preparation, triggering an event loop and CPU busy-waiting without any network topology changes.
+
+`frp-tun v0.5.4` introduces empty candidate suppression and network epoch backoff guards:
+
+1. **State-Change-Driven Recovery Signaling**: Recovery events are broadcast to the supervisor only when the address family's preparation state (`Prepared`) flips or when a new generation of valid candidates emerges; repeated unready outcomes without candidate changes are suppressed silently;
+2. **Network Epoch Backoff Lock**: During empty candidate retry loops, if the local network epoch (interface updates, address changes) remains unchanged, repeated external preparation triggers cannot interrupt the exponential backoff timer, preventing discovery burst storms;
+3. **Log Desensitization**: Temporary zero-candidate preparation results are separated from severe error logging, logging audit messages only upon key network topology changes to maintain clean operational diagnostics.
