@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Diagnosing preview deployment issues without disclosing sensitive infrastructure material.
+description: Diagnosing preview deployment issues, session slot exhaustion, and MTU blackholes without disclosing sensitive infrastructure material.
 version: preview
 ---
 
@@ -9,3 +9,57 @@ version: preview
 Begin troubleshooting by inspecting local service status, interface ownership (`frp-tun:<uid>`), policy routing tables (`ip rule`), and nftables filter counters before checking whether the carrier is toggling between direct P2P and STCP relay modes.
 
 Public issue submissions should only include sanitized version numbers, operating system distribution and architecture, reproducible steps, and categorized error traces.
+
+---
+
+## 1. Quick Three-Step Triage
+
+1. **Run `frp-tun doctor`**:
+   - If the daemon is active, `doctor` reads real-time link states (P2P direct vs STCP relay), live RTT, packet loss rates, and per-peer snapshots over the control socket;
+   - If the service failed to start, `doctor` falls back to offline mode to inspect the host `/dev/net/tun` device, TOML configuration syntax, identity private keys, and kernel forwarding switches.
+2. **Inspect Network Interfaces & Routing Rules**:
+   ```bash
+   ip link show dev frp-tun:REPLACE_WITH_SITE_ID
+   ip rule show
+   ```
+3. **Inspect Firewall Rules & Counters**:
+   ```bash
+   nft list chain inet frp-tun forward
+   ```
+
+---
+
+## 2. Common Issue Triage
+
+### 2.1 Session Slot Exhaustion (`candidate_open_slot_full`)
+
+- **Symptom**: Logs emit `[WARN] candidate open slots full (limit 16)` and new direct channels fail to establish.
+- **Diagnostic Method**: `frp-tun v0.5.5` outputs a structured snapshot whenever this condition occurs:
+  ```text
+  [WARN] candidate open slots full (limit 16), active slots: [ipv4:dialing:sess-01:14s, ipv4:dialing:sess-02:12s], rejecting new candidate open
+  ```
+  The snapshot format is `[family:state:id:age]`, protected by a 10-second rate limiter.
+- **Root Cause**:
+  - If multiple slots are in `dialing` state with `age` exceeding 10 seconds, outbound UDP/QUIC discovery probes are likely being silently dropped by upstream NAT or intermediate firewall filters, leaving half-open dials unacknowledged;
+  - Peer daemon crashed or is undergoing rapid network re-homing.
+- **Remedy**: Verify UDP pass-through on intermediate firewalls; in steady state, stale generation slots expire and reclaim automatically.
+
+---
+
+### 2.2 Cross-Site Large TCP Packet Hang / HTTPS Stalling (MTU Blackholes)
+
+- **Symptom**: `ping` across tunnel addresses exhibits low latency and zero loss, SSH sessions remain responsive, but large file transfers (e.g. `curl`) hang indefinitely and HTTPS browser page loads stall.
+- **Root Cause**: WireGuard Overlay encapsulation consumes additional packet header headroom (WireGuard 32-byte header + outer UDP/IP headers). When packets carry the `DF` (Don't Fragment) bit and intermediate paths drop ICMP `Fragmentation Needed` notices, a Path MTU blackhole occurs.
+- **v0.5.5 Mitigation**:
+  - `frp-tun v0.5.5` automatically injects bidirectional TCP MSS clamping rules into the `nftables` forward chain under `forwarding.mode = "nftables"`:
+    ```text
+    tcp flags syn tcp option maxseg size set rt mtu - 40
+    ```
+  - When utilizing `forwarding.mode = "manual"` on OpenWrt routers, ensure the firewall zone enclosing the tunnel interface has `option mtu_fix '1'` enabled in `/etc/config/firewall`:
+    ```uci
+    config zone
+        option name 'lan'
+        option mtu_fix '1'
+        list device 'frp-tun:site-a'
+    ```
+  - Running `frp-tun doctor` automatically checks `mtu_fix` compliance in manual mode.

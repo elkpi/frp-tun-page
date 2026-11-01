@@ -127,21 +127,47 @@ frp-tun status [--socket /var/run/frp-tun.sock]
 
 ---
 
-### 2.7 doctor（运行环境巡检）
+### 2.7 doctor（双模运行环境与在线链路全景巡检）
 
-快速诊断宿主机系统环境的前置依赖，排查潜在运行障碍。
+`frp-tun v0.5.5` 升级 `doctor` 为“在线全景探测 + 离线静态环境预检”双模诊断架构：
+
+- **在线全景模式**：当守护进程处于运行状态时，`doctor` 通过控制套接字读取 IPC 实时指标，输出当前活动链路模式、建联角色（`DialRole`）、传输协议、会话 ID、实时 RTT 与平滑 RTT、端到端丢包率、温备链路健康度、流量吞吐统计与全部对端连接快照；
+- **离线预检模式**：若套接字未响应或服务未拉起，自动回退至离线静态预检，验证配置文件结构、站点私钥材料就绪状态、`/dev/net/tun` 设备可用性及 IPv4 转发参数；
+- **防火墙与 TCP MSS Clamping 巡检**：针对自动模式验证 `nft` 工具就绪状态并确认针对出站隧道接口的 TCP MSS Clamping 规则生效；针对 `manual` 模式自动检查 `/etc/config/firewall` 的 `mtu_fix` 配置合规性，预防大包 MTU 黑洞。
 
 ```bash
-frp-tun doctor [-c /path/to/config.toml]
+frp-tun doctor [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 ```
 
-- `-c`, `--config <path>`: 配置文件路径，默认为 `/etc/frp-tun/config.toml`。
+- `-c`, `--config <path>`: 配置文件路径，缺省时默认为 `/etc/frp-tun/config.toml`。
+- `--socket <path>`: 控制套接字路径，缺省时默认为 `/var/run/frp-tun.sock`。
 
-**巡检项目**：
-- `[OK] /dev/net/tun available`: 字符设备文件及其权限状态；
-- `[OK] configuration parsed and validated`: 配置文件格式正确性；
-- `[OK] site identity key ready`: 本机身份私钥就绪情况；
-- `[OK] IPv4 forwarding authorized`: 系统内核数据包转发参数合规性。
+**在线模式输出示例**：
+```text
+[OK] configuration parsed and validated
+[ONLINE] daemon active (socket: /var/run/frp-tun.sock, site: site-a, version: v0.5.5)
+[OK] active carrier: direct-quic (role=dialer, transport=quic, session=sess-01)
+[OK] active QoS: rtt=18ms (smoothed=19ms), loss=0.0% (pongs=10/10)
+[OK] standby carrier: direct-quic-v6 (healthy=true, fails=0)
+[INFO] recovery snapshot: IPv4 available=true, IPv6 available=true, peer gen=3 (2 peer candidates)
+[OK] traffic stats: tx=12.4 MiB (8420 pkts), rx=18.6 MiB (12050 pkts)
+=== Peer Connections (1) ===
+- peer[site-b]: path=direct-quic, role=dialer, state=established
+[OK] site identity key ready
+[OK] /dev/net/tun available
+[OK] IPv4 forwarding authorized in config
+[OK] forwarding.mode = "nftables" (nft tool verified, automatic TCP MSS clamping enabled for frp-tun:site-a)
+```
+
+**离线模式输出示例**：
+```text
+[OK] configuration parsed and validated
+[OFFLINE] daemon not reachable via socket; operating in offline environment check mode
+[OK] site identity key ready
+[OK] /dev/net/tun available
+[OK] IPv4 forwarding authorized in config
+[OK] forwarding.mode = "nftables" (nft tool verified, automatic TCP MSS clamping enabled for frp-tun:site-a)
+```
 
 ---
 

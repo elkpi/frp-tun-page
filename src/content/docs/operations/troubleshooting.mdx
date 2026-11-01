@@ -1,9 +1,63 @@
 ---
 title: 故障排查
-description: 在不泄露敏感网络资料的前提下定位预览部署问题。
+description: 在不泄露敏感网络资料的前提下定位预览部署问题、会话槽位挂起与 MTU 黑洞。
 version: preview
 ---
 
 > **适用版本：技术预览。** 不要把私钥、token、完整配置、真实公网 IP、内网网段或完整日志提交到公开支持渠道。
 
 先检查本地服务状态、接口归属、策略路由和 nftables 计数器，再确认 carrier 是否在 P2P 与 STCP 回退间切换。公开 Issue 只应包含脱敏版本号、操作系统、复现步骤和删减后的错误类别。
+
+---
+
+## 1. 快速诊断三步法
+
+1. **运行 `frp-tun doctor`**：
+   - 若守护进程正在运行，`doctor` 将以在线模式提取当前活动链路模式（P2P 直连 / STCP 中继）、RTT、丢包率与各对端状态快照；
+   - 若服务无法启动，`doctor` 将以离线模式检查系统 `/dev/net/tun` 设备、配置语法、身份私钥与内核转发开关。
+2. **检查网络接口与策略路由**：
+   ```bash
+   ip link show dev frp-tun:REPLACE_WITH_SITE_ID
+   ip rule show
+   ```
+3. **检查防火墙与包计数**：
+   ```bash
+   nft list chain inet frp-tun forward
+   ```
+
+---
+
+## 2. 常见问题排查
+
+### 2.1 会话槽位耗尽 (`candidate_open_slot_full`)
+
+- **现象**：日志中出现 `[WARN] candidate open slots full (limit 16)`，且无法建立新的直连通道。
+- **诊断方式**：`frp-tun v0.5.5` 在触发此异常时输出结构化槽位快照：
+  ```text
+  [WARN] candidate open slots full (limit 16), active slots: [ipv4:dialing:sess-01:14s, ipv4:dialing:sess-02:12s], rejecting new candidate open
+  ```
+  快照格式为 `[family:state:id:age]`，并施加 10 秒限频保护。
+- **根因分析**：
+  - 若大量槽位处于 `dialing` 状态且 `age` 超过 10 秒，说明本端发往对端的 UDP/QUIC 探测报文被对端上游 NAT 或防火墙静默丢弃，导致半开建联未超时释放；
+  - 对端服务异常下线或正在进行频繁网络切换。
+- **恢复方案**：检查中间 NAT/防火墙 UDP 放行策略；稳态下旧代次槽位将在超时后自动回收释放。
+
+---
+
+### 2.2 TCP 跨站大包卡死 / HTTPS 假死 (MTU 黑洞)
+
+- **现象**：`ping` 隧道两端 IP 延迟极低且网络通畅，SSH 终端可正常登录，但传输大文件（如 `curl`）或访问 HTTPS 页面时握手卡死、浏览器持续转圈超时。
+- **根因分析**：WireGuard Overlay 隧道封装需要消耗额外的包头空间（WireGuard 报头 32 字节 + 外层 UDP/IP 头部）。若数据包携带 `DF` (Don't Fragment) 标志且中间网络丢弃了 ICMP `Fragmentation Needed` 差错报文，将导致路径 MTU 黑洞。
+- **v0.5.5 内置防护**：
+  - `frp-tun v0.5.5` 在 `forwarding.mode = "nftables"` 模式下自动双向注入出站隧道 MSS Clamping 规则：
+    ```text
+    tcp flags syn tcp option maxseg size set rt mtu - 40
+    ```
+  - 若在 OpenWrt 等路由器上使用了 `forwarding.mode = "manual"`，必须确保 `/etc/config/firewall` 中对应的接口 zone 配置了 `option mtu_fix '1'`：
+    ```uci
+    config zone
+        option name 'lan'
+        option mtu_fix '1'
+        list device 'frp-tun:site-a'
+    ```
+  - 运行 `frp-tun doctor` 可自动预检 manual 防火墙的 `mtu_fix` 合规性。

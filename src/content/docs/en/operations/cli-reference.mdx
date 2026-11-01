@@ -109,15 +109,47 @@ frp-tun status [--socket /var/run/frp-tun.sock]
 
 ---
 
-### 2.7 doctor (Environment Diagnostics)
+### 2.7 doctor (Dual-Mode Environment & Online Link Diagnostics)
 
-Inspects prerequisites and runtime requirements on the host operating system.
+`frp-tun v0.5.5` introduces a dual-mode diagnostic engine in `doctor`:
+
+- **Online Panoramic Inspection**: When the daemon is active, `doctor` communicates via the UNIX domain control socket to retrieve live IPC telemetry, including active carrier path, connection role (`DialRole`), transport protocol, session identifier, current & smoothed RTT, loss rates, standby carrier health, traffic statistics, and peer connection snapshots;
+- **Offline Preflight Inspection**: If the socket is unreachable or the service is stopped, `doctor` automatically falls back to offline environment verification, validating configuration syntax, site identity private key readiness, `/dev/net/tun` device availability, and IPv4 forwarding authorization;
+- **Firewall & TCP MSS Clamping Verification**: Under automatic mode, verifies the presence of `nft` in `PATH` and confirms bidirectional TCP MSS Clamping insertion for outbound tunnel interfaces; under `manual` mode, checks `/etc/config/firewall` zone `mtu_fix` compliance to prevent MTU blackholes.
 
 ```bash
-frp-tun doctor [-c /path/to/config.toml]
+frp-tun doctor [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 ```
 
 - `-c`, `--config <path>`: Path to configuration file (default: `/etc/frp-tun/config.toml`).
+- `--socket <path>`: Path to control socket (default: `/var/run/frp-tun.sock`).
+
+**Online Mode Output Example**:
+```text
+[OK] configuration parsed and validated
+[ONLINE] daemon active (socket: /var/run/frp-tun.sock, site: site-a, version: v0.5.5)
+[OK] active carrier: direct-quic (role=dialer, transport=quic, session=sess-01)
+[OK] active QoS: rtt=18ms (smoothed=19ms), loss=0.0% (pongs=10/10)
+[OK] standby carrier: direct-quic-v6 (healthy=true, fails=0)
+[INFO] recovery snapshot: IPv4 available=true, IPv6 available=true, peer gen=3 (2 peer candidates)
+[OK] traffic stats: tx=12.4 MiB (8420 pkts), rx=18.6 MiB (12050 pkts)
+=== Peer Connections (1) ===
+- peer[site-b]: path=direct-quic, role=dialer, state=established
+[OK] site identity key ready
+[OK] /dev/net/tun available
+[OK] IPv4 forwarding authorized in config
+[OK] forwarding.mode = "nftables" (nft tool verified, automatic TCP MSS clamping enabled for frp-tun:site-a)
+```
+
+**Offline Mode Output Example**:
+```text
+[OK] configuration parsed and validated
+[OFFLINE] daemon not reachable via socket; operating in offline environment check mode
+[OK] site identity key ready
+[OK] /dev/net/tun available
+[OK] IPv4 forwarding authorized in config
+[OK] forwarding.mode = "nftables" (nft tool verified, automatic TCP MSS clamping enabled for frp-tun:site-a)
+```
 
 ---
 
