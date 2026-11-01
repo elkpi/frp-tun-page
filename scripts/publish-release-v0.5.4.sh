@@ -3,7 +3,8 @@ set -euo pipefail
 
 DIST_DIR="${DIST_DIR:-/tmp/frp-tun-v0.5.4-assets}"
 if [ ! -d "$DIST_DIR" ]; then
-  DIST_DIR="/home/ping/work/frp-tun/dist"
+  mkdir -p "$DIST_DIR"
+  gh release download v0.5.4 --repo elkpi/frp-tun --dir "$DIST_DIR"
 fi
 
 CHECKSUM_FILE="$DIST_DIR/checksums.txt"
@@ -11,8 +12,12 @@ if [ ! -f "$CHECKSUM_FILE" ]; then
   CHECKSUM_FILE="$DIST_DIR/checksums-v0.5.4.txt"
 fi
 
+# 校验 SHA256 完整性
+(cd "$DIST_DIR" && sha256sum -c "$CHECKSUM_FILE")
+
 gh release create v0.5.4 \
   --repo elkpi/frp-tun-page \
+  --target 8266d4c2087f79f57d1eec131f4160412e8bdb9a \
   --title "Release v0.5.4" \
   --notes "## frp-tun v0.5.4 — 空候选恢复循环抑制、网络纪元退避防护与准备日志降噪
 
