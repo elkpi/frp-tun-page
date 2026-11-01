@@ -1,27 +1,88 @@
 ---
 title: OpenWrt 注意事项
-description: OpenWrt 网关部署前需审查的权限、路由与防火墙边界。
+description: OpenWrt 网关部署前需审查的权限、路由、UCI 配置、Procd 合成与防火墙边界。
 version: preview
 ---
 
-> **适用版本：技术预览。** 本站不提供二进制下载；OpenWrt 硬件、非零 `SO_MARK` 与长期负载仍未作为通用支持结论发布。
+> **适用版本：技术预览 (v0.5.5)。** 本站提供多架构原生预编译二进制；物理硬件设备高压负载、特定网络下的非零 `SO_MARK` 特权行为仍建议在实际环境中实测评估。
 
-```toml
-[openwrt]
-interface_alias = "frp-tun:REPLACE_WITH_SITE_ID"
-config_path = "/etc/frp-tun/REPLACE_WITH_CONFIG_NAME.toml"
+部署前确认运行账户拥有 `CAP_NET_ADMIN` 与 `CAP_NET_RAW` 能力，并备份当前 `ip rule`、路由表与 nftables 规则。任何升级均应在维护窗口执行，并准备独立的手工回退路径。
 
-[wireguard]
-private_key = "REPLACE_WITH_PRIVATE_KEY"
+---
+
+## 1. 架构与二进制选型
+
+在 OpenWrt 路由器上部署时，请根据硬件 CPU 架构前往 [发行说明](/releases/v0.5.5/) 获取对应的预编译二进制：
+
+- **32 位 ARM 路由器 (armv7 / armv7l)**：获取 `frp-tun_v0.5.5_arm`（分发包亦包含 `frp-tun_arm`、`frp-tun_armv7` 兼容软链接，UPX 压缩后约 3.2MB，适用于常见 32 位 ARMv7 路由器网关）；
+- **64 位 ARM 路由器 (arm64 / aarch64)**：获取 `frp-tun_v0.5.5_arm64`；
+- **MIPS / MIPSLE 路由器**：获取 `frp-tun_v0.5.5_mips-softfloat` 或 `frp-tun_v0.5.5_mipsle-softfloat`；
+- **x86_64 软路由**：获取 `frp-tun_v0.5.5_amd64`。
+
+---
+
+## 2. 官方 UCI 配置规范 (`/etc/config/frp-tun`)
+
+`frp-tun v0.5.5` 原生支持 OpenWrt UCI 配置标准。可通过 UCI 命令行或 LuCI 界面统一管理：
+
+```uci
+config frp-tun 'global'
+	option enabled '1'
+	# 推荐模式 A：指定已脱敏的独立 TOML 配置文件
+	option config_file '/etc/frp-tun/config.toml'
+
+# 模式 B：若未指定 config_file，服务将根据下列 UCI 段落动态合成运行时配置
+config site 'site'
+	option id 'site-local'
+	list networks '198.51.100.0/24'
+	option tunnel_address '192.0.2.1/32'
+	option role 'proxy'
+	option mtu '1420'
+
+config peer 'peer'
+	option id 'site-remote'
+	list networks '203.0.113.0/24'
+	option tunnel_address '192.0.2.2/32'
+	option role 'visitor'
+	option public_key 'REPLACE_WITH_PEER_PUBLIC_KEY'
+
+config frp 'frp'
+	option server_addr 'relay.example.com'
+	option server_port '7000'
+	option tls '1'
+	option token_file '/etc/frp-tun/frps.token'
+	option shared_secret_file '/etc/frp-tun/secret.key'
 ```
 
-部署前确认运行账户拥有所需网络管理能力，并备份当前 `ip rule`、路由表与 nftables 规则。任何升级均应在维护窗口执行，并准备独立的手工回退路径。
+---
 
-## 架构与二进制选型
+## 3. Procd 服务双模动态合成 (`/etc/init.d/frp-tun`)
 
-在 OpenWrt 路由器上部署时，请根据硬件 CPU 架构前往 [发行说明](/releases/v0.5.4/) 获取对应的预编译二进制：
+OpenWrt Procd 服务脚本支持双模启动：
+1. **独立配置模式**：当 UCI 指定了 `config_file`，直接以指定 TOML 配置文件启动守护进程，保障完整高级特性的灵活性；
+2. **UCI 动态渲染模式**：当未指定 `config_file` 时，Procd 在拉起服务前自动将 UCI 段落合成为 `/var/etc/frp-tun.toml`，实现零手工编写 TOML 的开箱即用。
 
-- **32 位 ARM 路由器 (armv7 / armv7l)**：获取 `frp-tun_v0.5.4_arm`（分发包亦包含 `frp-tun_arm`、`frp-tun_armv7` 兼容软链接，UPX 压缩后约 3.2MB，适用于常见 32 位 ARMv7 路由器网关）；
-- **64 位 ARM 路由器 (arm64 / aarch64)**：获取 `frp-tun_v0.5.4_arm64`；
-- **MIPS / MIPSLE 路由器**：获取 `frp-tun_v0.5.4_mips-softfloat` 或 `frp-tun_v0.5.4_mipsle-softfloat`；
-- **x86_64 软路由**：获取 `frp-tun_v0.5.4_amd64`。
+常用服务管理命令：
+```bash
+/etc/init.d/frp-tun enable
+/etc/init.d/frp-tun start
+/etc/init.d/frp-tun status
+```
+
+---
+
+## 4. LuCI 状态监控面板 (`luci-app-frp-tun`)
+
+配套的 `luci-app-frp-tun` 扩展包通过 rpcd ACL 安全读取本地 UNIX 控制套接字（`/var/run/frp-tun.sock`），在 OpenWrt Web 界面提供实时运行总览：
+- **链路模式**：直观展示当前处于直连（`direct-quic`）还是中继回退（`stcp`）；
+- **节点指标**：实时展示平滑 RTT 延迟、双向丢包率及当前传输协议；
+- **吞吐统计**：实时显示隧道累计收发流量字节数与数据包计数。
+
+---
+
+## 5. 防火墙与 MTU Clamping 边界
+
+在 OpenWrt 部署中，需特别注意防火墙配置：
+1. **自动化 nftables 模式**：`frp-tun` 会自动探测内核 nftables 支持并注入 TCP MSS Clamping 规则；
+2. **手动模式 (`forwarding.mode = "manual"`)**：若网络由 OpenWrt `fw4` 接管，必须在 `/etc/config/firewall` 的隧道关联 zone 显式配置 `option mtu_fix '1'`，避免大包分片引起的跨站 HTTPS 访问卡死；
+3. **环境巡检**：部署完成后执行 `frp-tun doctor`，自动检查 `/dev/net/tun` 设备、身份私钥就绪状态与防火墙合规性。

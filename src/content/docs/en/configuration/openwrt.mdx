@@ -1,27 +1,88 @@
 ---
 title: OpenWrt Deployment Considerations
-description: Privileges, routing tables, and firewall boundaries to inspect before deploying frp-tun on OpenWrt gateways.
+description: Privileges, routing tables, UCI templates, Procd synthesis, and firewall boundaries for OpenWrt gateways.
 version: preview
 ---
 
-> **Applicable version: technical preview.** Specific OpenWrt SoC platforms, non-zero `SO_MARK` socket options, and long-term embedded router stability remain subject to ongoing evaluation.
-
-```toml
-[openwrt]
-interface_alias = "frp-tun:REPLACE_WITH_SITE_ID"
-config_path = "/etc/frp-tun/REPLACE_WITH_CONFIG_NAME.toml"
-
-[wireguard]
-private_key = "REPLACE_WITH_PRIVATE_KEY"
-```
+> **Applicable version: technical preview (v0.5.5).** Multi-architecture precompiled native binaries are provided; real-world evaluation on specific physical hardware under prolonged load and non-zero `SO_MARK` privilege behavior remains recommended.
 
 Prior to gateway deployment, verify that the daemon execution context retains `CAP_NET_ADMIN` and `CAP_NET_RAW` capabilities. Operators should back up current `ip rule`, custom routing tables, and nftables firewall rules. All upgrades should occur within designated maintenance windows with an independent manual rollback path prepared.
 
-## Architecture & Binary Selection
+---
 
-When deploying on OpenWrt routers, obtain the precompiled binary from [Release Notes](/en/releases/v0.5.4/) matching your hardware architecture:
+## 1. Architecture & Binary Selection
 
-- **32-bit ARM routers (armv7 / armv7l)**: Obtain `frp-tun_v0.5.4_arm` (distribution also provides `frp-tun_arm` and `frp-tun_armv7` compatibility aliases, ~3.2MB UPX-compressed, suitable for common 32-bit ARMv7 routers);
-- **64-bit ARM routers (arm64 / aarch64)**: Obtain `frp-tun_v0.5.4_arm64`;
-- **MIPS / MIPSLE routers**: Obtain `frp-tun_v0.5.4_mips-softfloat` or `frp-tun_v0.5.4_mipsle-softfloat`;
-- **x86_64 soft routers**: Obtain `frp-tun_v0.5.4_amd64`.
+When deploying on OpenWrt routers, obtain the precompiled binary from [Release Notes](/en/releases/v0.5.5/) matching your hardware architecture:
+
+- **32-bit ARM routers (armv7 / armv7l)**: Obtain `frp-tun_v0.5.5_arm` (distribution also provides `frp-tun_arm` and `frp-tun_armv7` compatibility aliases, ~3.2MB UPX-compressed, suitable for common 32-bit ARMv7 routers);
+- **64-bit ARM routers (arm64 / aarch64)**: Obtain `frp-tun_v0.5.5_arm64`;
+- **MIPS / MIPSLE routers**: Obtain `frp-tun_v0.5.5_mips-softfloat` or `frp-tun_v0.5.5_mipsle-softfloat`;
+- **x86_64 soft routers**: Obtain `frp-tun_v0.5.5_amd64`.
+
+---
+
+## 2. Official UCI Configuration Specification (`/etc/config/frp-tun`)
+
+`frp-tun v0.5.5` natively supports the OpenWrt UCI configuration standard, allowing unified management through UCI CLI or the LuCI web interface:
+
+```uci
+config frp-tun 'global'
+	option enabled '1'
+	# Recommended Mode A: Reference a standalone sanitized TOML configuration file
+	option config_file '/etc/frp-tun/config.toml'
+
+# Mode B: If config_file is omitted, the service dynamically synthesizes runtime configuration from UCI sections below
+config site 'site'
+	option id 'site-local'
+	list networks '198.51.100.0/24'
+	option tunnel_address '192.0.2.1/32'
+	option role 'proxy'
+	option mtu '1420'
+
+config peer 'peer'
+	option id 'site-remote'
+	list networks '203.0.113.0/24'
+	option tunnel_address '192.0.2.2/32'
+	option role 'visitor'
+	option public_key 'REPLACE_WITH_PEER_PUBLIC_KEY'
+
+config frp 'frp'
+	option server_addr 'relay.example.com'
+	option server_port '7000'
+	option tls '1'
+	option token_file '/etc/frp-tun/frps.token'
+	option shared_secret_file '/etc/frp-tun/secret.key'
+```
+
+---
+
+## 3. Procd Dual-Mode Service Synthesis (`/etc/init.d/frp-tun`)
+
+The OpenWrt Procd init script provides dual-mode synthesized startup:
+1. **Standalone Configuration Mode**: When UCI defines `config_file`, the daemon boots directly with the referenced TOML file, ensuring full access to all advanced parameters;
+2. **Dynamic UCI Synthesis Mode**: When `config_file` is absent, Procd dynamically compiles the UCI sections into `/var/etc/frp-tun.toml` before launching the daemon.
+
+Standard service management:
+```bash
+/etc/init.d/frp-tun enable
+/etc/init.d/frp-tun start
+/etc/init.d/frp-tun status
+```
+
+---
+
+## 4. LuCI Real-Time Status Dashboard (`luci-app-frp-tun`)
+
+The accompanying `luci-app-frp-tun` package queries the local UNIX control socket (`/var/run/frp-tun.sock`) via secure rpcd ACLs to render live telemetry within the OpenWrt administration UI:
+- **Link Mode**: Live status indicator displaying direct (`direct-quic`) or relay fallback (`stcp`);
+- **Network Telemetry**: Real-time smoothed RTT latency, packet loss percentage, and transport protocol;
+- **Throughput Accounting**: Cumulative transmitted and received byte counters and packet totals.
+
+---
+
+## 5. Firewall & MTU Clamping Boundaries
+
+Pay strict attention to routing and packet filtering during OpenWrt deployment:
+1. **Automated nftables Mode**: `frp-tun` verifies kernel nftables support and injects outbound TCP MSS Clamping rules automatically;
+2. **Manual Mode (`forwarding.mode = "manual"`)**: When firewall policy is managed by OpenWrt `fw4`, ensure the firewall zone enclosing the tunnel interface has `option mtu_fix '1'` explicitly configured in `/etc/config/firewall` to prevent cross-site HTTPS stalling;
+3. **Environment Inspection**: Execute `frp-tun doctor` post-deployment to verify `/dev/net/tun` availability, key material readiness, and firewall compliance.
