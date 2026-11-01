@@ -55,3 +55,12 @@ test('allows the disclosed built-in STUN endpoints', async () => {
 
   assert.deepEqual(result.violations, []);
 });
+
+test('does not treat dotted config keys like forwarding.mode as a hostname', async () => {
+  const { validatePublicContent } = await loadValidator();
+
+  assert.equal(typeof validatePublicContent, 'function');
+  const result = await validatePublicContent({ roots: [`${fixtures}safe-forwarding-mode.md`] });
+
+  assert.deepEqual(result.violations, []);
+});

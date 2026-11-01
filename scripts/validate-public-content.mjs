@@ -55,6 +55,7 @@ const nonHostnameSuffixes = new Set([
   'shared_secret',
   'private_key',
   'public_key',
+  'mode',
   '1',
 ]);
 
