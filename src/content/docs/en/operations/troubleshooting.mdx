@@ -56,7 +56,7 @@ Public issue submissions should only include sanitized version numbers, operatin
     tcp flags syn tcp option maxseg size set rt mtu - 40
     ```
   - When utilizing `forwarding.mode = "manual"` on OpenWrt routers, ensure the firewall zone enclosing the tunnel interface has `option mtu_fix '1'` enabled in `/etc/config/firewall`:
-    ```uci
+    ```ini
     config zone
         option name 'lan'
         option mtu_fix '1'

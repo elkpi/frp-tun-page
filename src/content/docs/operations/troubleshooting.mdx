@@ -54,7 +54,7 @@ version: preview
     tcp flags syn tcp option maxseg size set rt mtu - 40
     ```
   - 若在 OpenWrt 等路由器上使用了 `forwarding.mode = "manual"`，必须确保 `/etc/config/firewall` 中对应的接口 zone 配置了 `option mtu_fix '1'`：
-    ```uci
+    ```ini
     config zone
         option name 'lan'
         option mtu_fix '1'
