@@ -4,7 +4,7 @@ description: OpenWrt 网关部署前需审查的权限、路由、UCI 配置、P
 version: preview
 ---
 
-> **适用版本：技术预览 (v0.5.5)。** 本站提供多架构原生预编译二进制；物理硬件设备高压负载、特定网络下的非零 `SO_MARK` 特权行为仍建议在实际环境中实测评估。
+> **适用版本：技术预览 (v0.5.6)。** 本站提供多架构原生预编译二进制；物理硬件设备高压负载、特定网络下的非零 `SO_MARK` 特权行为仍建议在实际环境中实测评估。
 
 部署前确认运行账户拥有 `CAP_NET_ADMIN` 与 `CAP_NET_RAW` 能力，并备份当前 `ip rule`、路由表与 nftables 规则。任何升级均应在维护窗口执行，并准备独立的手工回退路径。
 
@@ -12,18 +12,18 @@ version: preview
 
 ## 1. 架构与二进制选型
 
-在 OpenWrt 路由器上部署时，请根据硬件 CPU 架构前往 [发行说明](/releases/v0.5.5/) 获取对应的预编译二进制：
+在 OpenWrt 路由器上部署时，请根据硬件 CPU 架构前往 [发行说明](/releases/v0.5.6/) 获取对应的预编译二进制：
 
-- **32 位 ARM 路由器 (armv7 / armv7l)**：获取 `frp-tun_v0.5.5_arm`（分发包亦包含 `frp-tun_arm`、`frp-tun_armv7` 兼容软链接，UPX 压缩后约 3.2MB，适用于常见 32 位 ARMv7 路由器网关）；
-- **64 位 ARM 路由器 (arm64 / aarch64)**：获取 `frp-tun_v0.5.5_arm64`；
-- **MIPS / MIPSLE 路由器**：获取 `frp-tun_v0.5.5_mips-softfloat` 或 `frp-tun_v0.5.5_mipsle-softfloat`；
-- **x86_64 软路由**：获取 `frp-tun_v0.5.5_amd64`。
+- **32 位 ARM 路由器 (armv7 / armv7l)**：获取 `frp-tun_v0.5.6_arm`（分发包亦包含 `frp-tun_arm`、`frp-tun_armv7` 兼容软链接，UPX 压缩后约 3.2MB，适用于常见 32 位 ARMv7 路由器网关）；
+- **64 位 ARM 路由器 (arm64 / aarch64)**：获取 `frp-tun_v0.5.6_arm64`；
+- **MIPS / MIPSLE 路由器**：获取 `frp-tun_v0.5.6_mips-softfloat` 或 `frp-tun_v0.5.6_mipsle-softfloat`；
+- **x86_64 软路由**：获取 `frp-tun_v0.5.6_amd64`。
 
 ---
 
 ## 2. 官方 UCI 配置规范 (`/etc/config/frp-tun`)
 
-`frp-tun v0.5.5` 原生支持 OpenWrt UCI 配置标准。可通过 UCI 命令行或 LuCI 界面统一管理：
+`frp-tun v0.5.6` 原生支持 OpenWrt UCI 配置标准。可通过 UCI 命令行或 LuCI 界面统一管理：
 
 ```ini
 config frp-tun 'global'
