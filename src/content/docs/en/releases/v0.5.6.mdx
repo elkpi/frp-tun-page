@@ -1,0 +1,121 @@
+---
+title: frp-tun v0.5.6
+description: Restore the committed configuration on restart, roll back a failed apply, and reject incomplete journals.
+slug: en/releases/v0.5.6
+version: v0.5.6
+status: release
+published: true
+---
+
+> **Official Release**  
+> **Release Date**: November 11, 2026  
+> **Release Artifacts**: Multi-architecture native UPX binary packages with checksum manifest  
+> **Upstream Release**: https://github.com/elkpi/frp-tun/releases/tag/v0.5.6  
+> **License**: Subject to the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+---
+
+## Summary
+
+`frp-tun v0.5.6` fixes two recovery failures: a restart could miss the last committed configuration, and a failed `apply` could not return to the previous generation. When the journal says the service should be enabled, `run` restores that configuration instead of a config file edited afterward. A failed `apply` rolls back to the previous generation, restoring isolation before rebuilding the runtime. Incomplete, corrupt, or digest-mismatched journals refuse startup.
+
+### Key Changes
+
+1. **Restart restores the committed configuration**: When `journal.json` in the state directory (default `/etc/frp-tun/journal.json`) records the service as enabled and the config digest matches, `run` restores that configuration. A missing, unparsable, or different config file does not replace it; startup logs `config file ignored` and continues from the journal. A missing journal file is the case that activates from the config file;
+2. **Unverifiable journals refuse startup**: An empty object, corrupt JSON, inconsistent enabled state, missing verifiable config, or digest mismatch makes `run` exit 4. It does not fall back to the config file;
+3. **Failed `apply` rolls back to the previous generation**: When a previous generation exists, a failure while arming isolation, setting forwarding, applying peers, starting the runtime, or writing the journal rolls back within a 30-second budget. Isolation is restored before the previous runtime is rebuilt, and the original error is returned to the client. The journal is updated only after `apply` commits, and previously recorded retired IPv6 prefixes are kept. Validation failures, and attempts to change the site identifier during `apply`, are rejected before the system is modified;
+4. **A failed rollback blocks further apply**: If rollback itself fails or exceeds 30 seconds, the service is marked inactive and the committed journal is left unchanged. Later `apply` calls fail with `restart required` until the process is restarted;
+5. **Client disconnect cancels apply; rollback keeps its own budget**: The control socket allows 90 seconds for `apply` and bounds the operation to 60 seconds, so a rollback can still report its result. Disconnecting the client cancels that `apply` request. Rollback uses an independent 30-second budget and is not cancelled with the client. `down` keeps a 60-second socket deadline.
+
+---
+
+## Downloads & Binary Assets
+
+Precompiled binaries are UPX-compressed, approximately 3.2MB–4.0MB.
+
+| Architecture / Platform | Filename | Download |
+|---|---|---|
+| **Linux amd64** (x86_64 servers & soft routers) | `frp-tun_v0.5.6_amd64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_amd64) |
+| **Linux arm64** (aarch64 Raspberry Pi, NAS, ARM routers) | `frp-tun_v0.5.6_arm64` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_arm64) |
+| **Linux arm** (armv7 32-bit routers & gateways) | `frp-tun_v0.5.6_arm` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_arm) |
+| **Linux mips** (Big-endian MIPS routers & hardware) | `frp-tun_v0.5.6_mips-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_mips-softfloat) |
+| **Linux mipsle** (Little-endian MIPS wireless routers) | `frp-tun_v0.5.6_mipsle-softfloat` | [Download Binary](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_mipsle-softfloat) |
+| **Complete Checksums Manifest** | `checksums.txt` | [Download checksums.txt](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/checksums.txt) |
+
+---
+
+## Verification
+
+Compare SHA256 checksums after download. The digests below match `checksums.txt` from the upstream `elkpi/frp-tun` `v0.5.6` release, and `sha256sum -c` was run against those downloaded binaries.
+
+```bash
+sha256sum -c checksums.txt
+```
+
+### Official SHA256 Checksums
+
+```text
+4076def03d356478e0ce285336fa31d18ba23d5cdf77a00cb7a81ada42d468a5  frp-tun_v0.5.6_amd64
+428f16f55f86e6eeeff75bf87b834185e56b0479d7fa5109bfc66e9aba5041ae  frp-tun_v0.5.6_arm
+3712f676d994cde8661245e3465d6bb87cacc069b470b4735f49784630f15bc2  frp-tun_v0.5.6_arm64
+366e65df18314641f88a028e4f3553ee142d52c3a589ea3bb37036790e505c04  frp-tun_v0.5.6_mipsle-softfloat
+ece9e234d62af202ce16c340a45a4cdc76c7f2f9da0a223c8237e43f1c0eb5a1  frp-tun_v0.5.6_mips-softfloat
+```
+
+---
+
+## Verified Scope
+
+- Go unit tests cover restoring a committed configuration when the config file is missing or different, refusing a corrupt journal, rejecting an empty journal as an explicit stop, rolling back a failed `apply`, rejecting the next `apply` after a rollback timeout, restoring isolation before rebuilding the runtime, and keeping committed retired IPv6 prefixes after a successful `apply`;
+- The five Linux binaries published upstream as `v0.5.6` match `checksums.txt`;
+- This page does not treat those unit tests or cross-compiled artifacts as verification of specific hardware, sustained load, or privileged routing.
+
+---
+
+## Known Limitations
+
+- `frp-tun down` cleans network resources owned by this instance and writes a journal with `desired_enabled=false`, but that record has no `site_id`. On `v0.5.6`, the next `run` treats it as an incomplete stopped state, refuses startup, and reports `journal missing explicit stopped state`. After `down` has succeeded and owned network resources are gone, delete `journal.json` in the state directory (default `/etc/frp-tun/journal.json`) so the next `run` activates from the config file. Do not delete that file while the service should keep its committed configuration;
+- Automated cross-compiled assets in this release are not a compatibility endorsement for any specific commercial hardware platform;
+- Sustained load on physical devices, non-zero `SO_MARK` behavior on specific hardware, and traversal across complex multi-layer NAT still have to be checked in the actual network;
+- Subject to the [EULA disclaimer](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md), there is no silent online auto-update and no availability SLA.
+
+---
+
+## Upgrade
+
+1. Back up the gateway configuration (for example `/etc/frp-tun/config.toml` or `/etc/config/frp-tun`). If an enabled journal already exists, restarting after the binary replacement restores the journal, not a config file edited later;
+2. Stop the current daemon:
+   ```bash
+   systemctl stop frp-tun
+   ```
+3. Replace the binary and mark it executable:
+   ```bash
+   chmod +x frp-tun_v0.5.6_amd64
+   mv frp-tun_v0.5.6_amd64 /usr/local/bin/frp-tun
+   ```
+4. Start the service. Change configuration with `frp-tun apply`, not by editing the file and restarting:
+   ```bash
+   systemctl start frp-tun
+   frp-tun apply -c /etc/frp-tun/config.toml
+   ```
+5. Inspect the running instance:
+   ```bash
+   frp-tun doctor
+   ```
+
+---
+
+## Rollback
+
+This section is about restoring an older binary. It is not the automatic return to the previous configuration when `apply` fails.
+
+1. Stop the service: `systemctl stop frp-tun`;
+2. Restore the backed-up older binary to `/usr/local/bin/frp-tun`;
+3. To abandon a configuration committed by `v0.5.6`, run `frp-tun down` on this version first. If the next start is refused with `journal missing explicit stopped state`, delete `journal.json` only after owned network resources are confirmed cleaned, then start the older daemon;
+4. Start the older daemon.
+
+---
+
+## Revocation
+
+If a severe security vulnerability or a kernel-crash defect is found, maintainers will mark the Release page `REVOKED — DO NOT USE`, remove the corresponding binary assets, and publish a notice through [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).
