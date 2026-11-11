@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 在包含本脚本的检出上执行。若 main 之后又有新提交，先设置 TARGET_COMMIT
-# 为应当挂上 v0.5.6 Release 的页面仓库提交。
-TARGET_COMMIT="${TARGET_COMMIT:-HEAD}"
+# 默认打在包含 v0.5.6 文档与本脚本初版的提交上。main 继续前进时不要改成 HEAD。
+TARGET_COMMIT="${TARGET_COMMIT:-6e91999712dec909818483b03b3d913a003abda3}"
 TARGET_COMMIT="$(git rev-parse "$TARGET_COMMIT")"
 
 DIST_DIR="${DIST_DIR:-/tmp/frp-tun-v0.5.6-assets}"
