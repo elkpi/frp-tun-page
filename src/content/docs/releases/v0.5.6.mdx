@@ -10,7 +10,6 @@ published: true
 > **正式发布版本**  
 > **发布日期**：2026 年 11 月 11 日  
 > **发布文件**：多架构原生 UPX 二进制包与校验和文件  
-> **上游发布**：https://github.com/elkpi/frp-tun/releases/tag/v0.5.6  
 > **使用许可**：遵循 [最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
 
 ---
@@ -46,7 +45,7 @@ published: true
 
 ## 验证
 
-下载后请比对 SHA256 校验和。下列摘要与上游 `elkpi/frp-tun` `v0.5.6` 发布资产的 `checksums.txt` 一致，并已对下载的二进制执行 `sha256sum -c`。
+下载后请比对 SHA256 校验和。下列摘要与本页随附的 `checksums.txt` 一致，并已对下载的二进制执行 `sha256sum -c`。
 
 ```bash
 sha256sum -c checksums.txt
@@ -67,7 +66,7 @@ ece9e234d62af202ce16c340a45a4cdc76c7f2f9da0a223c8237e43f1c0eb5a1  frp-tun_v0.5.6
 ## 已验证范围
 
 - 恢复与回滚相关的 Go 单元测试覆盖：配置文件缺失或与 journal 不一致时仍恢复已提交配置、损坏 journal 拒绝启动、空 journal 不得当作明确停用、`apply` 失败回滚、回滚超时后拒绝下一次 `apply`、回滚先恢复隔离再重建运行时、成功 `apply` 后保留已提交的退役 IPv6 前缀；
-- 上游 `v0.5.6` 发布的五种 Linux 架构二进制与 `checksums.txt` 一致；
+- 本页发布的五种 Linux 架构二进制与 `checksums.txt` 一致；
 - 本页不把上述单元测试或交叉构建结果写成特定硬件、持续负载或特权路由已验证。
 
 ---

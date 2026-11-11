@@ -10,7 +10,6 @@ published: true
 > **Official Release**  
 > **Release Date**: November 11, 2026  
 > **Release Artifacts**: Multi-architecture native UPX binary packages with checksum manifest  
-> **Upstream Release**: https://github.com/elkpi/frp-tun/releases/tag/v0.5.6  
 > **License**: Subject to the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
 
 ---
@@ -46,7 +45,7 @@ Precompiled binaries are UPX-compressed, approximately 3.2MB–4.0MB.
 
 ## Verification
 
-Compare SHA256 checksums after download. The digests below match `checksums.txt` from the upstream `elkpi/frp-tun` `v0.5.6` release, and `sha256sum -c` was run against those downloaded binaries.
+Compare SHA256 checksums after download. The digests below match the `checksums.txt` published with this page, and `sha256sum -c` was run against those downloaded binaries.
 
 ```bash
 sha256sum -c checksums.txt
@@ -67,7 +66,7 @@ ece9e234d62af202ce16c340a45a4cdc76c7f2f9da0a223c8237e43f1c0eb5a1  frp-tun_v0.5.6
 ## Verified Scope
 
 - Go unit tests cover restoring a committed configuration when the config file is missing or different, refusing a corrupt journal, rejecting an empty journal as an explicit stop, rolling back a failed `apply`, rejecting the next `apply` after a rollback timeout, restoring isolation before rebuilding the runtime, and keeping committed retired IPv6 prefixes after a successful `apply`;
-- The five Linux binaries published upstream as `v0.5.6` match `checksums.txt`;
+- The five Linux binaries in this release match `checksums.txt`;
 - This page does not treat those unit tests or cross-compiled artifacts as verification of specific hardware, sustained load, or privileged routing.
 
 ---

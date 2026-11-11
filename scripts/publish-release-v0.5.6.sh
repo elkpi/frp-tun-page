@@ -43,7 +43,7 @@ gh release create v0.5.6 \
 
 ### 资产清单与 SHA256 校验和
 
-包含 amd64、arm、arm64、mips-softfloat、mipsle-softfloat 五种 Linux UPX 压缩构建及 \`checksums.txt\`。摘要与上游 \`elkpi/frp-tun\` \`v0.5.6\` 发布资产一致。
+包含 amd64、arm、arm64、mips-softfloat、mipsle-softfloat 五种 Linux UPX 压缩构建及 \`checksums.txt\`。摘要与本页随附的 \`checksums.txt\` 一致。
 
 \`\`\`text
 4076def03d356478e0ce285336fa31d18ba23d5cdf77a00cb7a81ada42d468a5  frp-tun_v0.5.6_amd64
@@ -56,7 +56,7 @@ ece9e234d62af202ce16c340a45a4cdc76c7f2f9da0a223c8237e43f1c0eb5a1  frp-tun_v0.5.6
 ### 验证与已知边界
 
 - 恢复与回滚相关的 Go 单元测试覆盖已提交配置恢复、损坏 journal 拒绝启动和 \`apply\` 回滚；
-- 五种架构二进制已对照上游 \`checksums.txt\` 校验；
+- 五种架构二进制已对照随附的 \`checksums.txt\` 校验；
 - 本版本自动化构建资产不代表特定商业硬件或物理设备兼容性声明；
 - 遵循 [EULA 免责声明](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)，不提供在线自动更新与可用性 SLA 保证。" \
   "$DIST_DIR/frp-tun_v0.5.6_amd64" \
