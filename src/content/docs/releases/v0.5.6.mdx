@@ -1,0 +1,121 @@
+---
+title: frp-tun v0.5.6
+description: 重启恢复已提交配置，apply 失败回滚到上一代，并拒绝不完整 journal。
+slug: releases/v0.5.6
+version: v0.5.6
+status: release
+published: true
+---
+
+> **正式发布版本**  
+> **发布日期**：2026 年 11 月 11 日  
+> **发布文件**：多架构原生 UPX 二进制包与校验和文件  
+> **上游发布**：https://github.com/elkpi/frp-tun/releases/tag/v0.5.6  
+> **使用许可**：遵循 [最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+---
+
+## 摘要
+
+`frp-tun v0.5.6` 修复崩溃或重启后未恢复已提交配置，以及 `apply` 失败后不能回到上一代的问题。已有启用记录时，`run` 恢复 journal 中的配置，而不是磁盘上后来改过的配置文件。`apply` 在隔离、转发、运行时或 journal 提交失败时回滚到上一代，并先恢复隔离再重建运行时。不完整、损坏或摘要不符的 journal 会拒绝启动。
+
+### 主要变更
+
+1. **重启恢复已提交配置**：状态目录中的 `journal.json`（默认 `/etc/frp-tun/journal.json`）记录服务应启用且配置摘要一致时，`run` 使用其中的配置调用恢复。配置文件缺失、无法解析，或与 journal 不一致时，启动仍使用 journal，并在错误输出写入 `config file ignored`。journal 文件不存在时，才按配置文件全新激活；
+2. **拒绝不可校验的 journal**：空对象、损坏的 JSON、启用状态不一致、缺少可校验配置，或配置摘要不符时，`run` 以退出码 4 拒绝启动，不会退回配置文件；
+3. **`apply` 失败回滚到上一代**：已有上一代配置时，隔离、转发、增量对端、运行时或 journal 写入失败会在 30 秒预算内先恢复上一代隔离，再重建上一代运行时，并把原始错误返回给客户端。journal 只在整次 `apply` 成功后更新，已记录的退役 IPv6 前缀会保留。校验失败，或试图在 `apply` 中修改站点 ID，会在改动系统之前拒绝；
+4. **回滚失败后禁止继续 apply**：回滚本身失败或超过 30 秒时，服务标记为未激活，已提交的 journal 保持不变。此后 `apply` 失败并包含 `restart required`，需要重启进程后才能再次 `apply`；
+5. **断开连接会取消 apply，回滚预算独立**：控制套接字对 `apply` 的截止时间为 90 秒，操作本身限 60 秒，以便回滚结果仍能写回。客户端断开会取消这次 `apply` 请求；回滚使用独立的 30 秒预算，不跟随该取消。`down` 的套接字截止时间仍为 60 秒。
+
+---
+
+## 下载与二进制资产 (Downloads)
+
+预编译二进制使用 UPX 压缩，体积约 3.2MB–4.0MB。
+
+| 架构 / 平台 | 文件名 | 下载链接 |
+|---|---|---|
+| **Linux amd64** (x86_64 服务器/软路由) | `frp-tun_v0.5.6_amd64` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_amd64) |
+| **Linux arm64** (aarch64 树莓派/NAS/新路由) | `frp-tun_v0.5.6_arm64` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_arm64) |
+| **Linux arm** (armv7 32 位路由器/网关) | `frp-tun_v0.5.6_arm` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_arm) |
+| **Linux mips** (大端 MIPS 架构软硬件) | `frp-tun_v0.5.6_mips-softfloat` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_mips-softfloat) |
+| **Linux mipsle** (小端 MIPS 常见无线路由器) | `frp-tun_v0.5.6_mipsle-softfloat` | [下载二进制](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/frp-tun_v0.5.6_mipsle-softfloat) |
+| **完整校验和清单** | `checksums.txt` | [下载 checksums.txt](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.6/checksums.txt) |
+
+---
+
+## 验证
+
+下载后请比对 SHA256 校验和。下列摘要与上游 `elkpi/frp-tun` `v0.5.6` 发布资产的 `checksums.txt` 一致，并已对下载的二进制执行 `sha256sum -c`。
+
+```bash
+sha256sum -c checksums.txt
+```
+
+### 官方 SHA256 校验清单
+
+```text
+4076def03d356478e0ce285336fa31d18ba23d5cdf77a00cb7a81ada42d468a5  frp-tun_v0.5.6_amd64
+428f16f55f86e6eeeff75bf87b834185e56b0479d7fa5109bfc66e9aba5041ae  frp-tun_v0.5.6_arm
+3712f676d994cde8661245e3465d6bb87cacc069b470b4735f49784630f15bc2  frp-tun_v0.5.6_arm64
+366e65df18314641f88a028e4f3553ee142d52c3a589ea3bb37036790e505c04  frp-tun_v0.5.6_mipsle-softfloat
+ece9e234d62af202ce16c340a45a4cdc76c7f2f9da0a223c8237e43f1c0eb5a1  frp-tun_v0.5.6_mips-softfloat
+```
+
+---
+
+## 已验证范围
+
+- 恢复与回滚相关的 Go 单元测试覆盖：配置文件缺失或与 journal 不一致时仍恢复已提交配置、损坏 journal 拒绝启动、空 journal 不得当作明确停用、`apply` 失败回滚、回滚超时后拒绝下一次 `apply`、回滚先恢复隔离再重建运行时、成功 `apply` 后保留已提交的退役 IPv6 前缀；
+- 上游 `v0.5.6` 发布的五种 Linux 架构二进制与 `checksums.txt` 一致；
+- 本页不把上述单元测试或交叉构建结果写成特定硬件、持续负载或特权路由已验证。
+
+---
+
+## 已知限制
+
+- `frp-tun down` 会清理本实例网络资源，并写入 `desired_enabled=false` 的 journal，但该记录不含 `site_id`。`v0.5.6` 的 `run` 把这种记录视为不完整停用状态，拒绝启动并报告 `journal missing explicit stopped state`。成功执行 `down` 且确认网络资源已清理之后，删除状态目录中的 `journal.json`（默认 `/etc/frp-tun/journal.json`），下一次 `run` 才会按配置文件全新激活。服务仍应保持已提交配置时，不要删除该文件；
+- 本版本发布的自动化交叉编译资产不构成特定商业硬件平台的兼容性背书；
+- 物理设备高压负载、特定硬件下的非零 `SO_MARK` 特权行为与跨复杂多层 NAT 的穿透效果仍需在实际网络环境中验证；
+- 遵循 [EULA 免责声明](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)，不提供在线自动静默更新与可用性 SLA 保证。
+
+---
+
+## 升级
+
+1. 备份当前网关上的配置文件（如 `/etc/frp-tun/config.toml` 或 `/etc/config/frp-tun`）。已有启用 journal 时，替换二进制后重启恢复的是 journal 里的配置，不是后来改过的配置文件；
+2. 停止当前守护进程：
+   ```bash
+   systemctl stop frp-tun
+   ```
+3. 替换二进制并赋予执行权限：
+   ```bash
+   chmod +x frp-tun_v0.5.6_amd64
+   mv frp-tun_v0.5.6_amd64 /usr/local/bin/frp-tun
+   ```
+4. 启动服务。需要改配置时使用 `frp-tun apply`，不要只改文件再重启：
+   ```bash
+   systemctl start frp-tun
+   frp-tun apply -c /etc/frp-tun/config.toml
+   ```
+5. 查看运行状态：
+   ```bash
+   frp-tun doctor
+   ```
+
+---
+
+## 回退
+
+这里的回退是换回上一版二进制，不是 `apply` 失败时守护进程自动回到上一代配置。
+
+1. 停止服务：`systemctl stop frp-tun`；
+2. 将备份的历史版本二进制恢复至 `/usr/local/bin/frp-tun`；
+3. 若需要放弃 `v0.5.6` 已提交的配置，先在本版本执行 `frp-tun down`。若下一次启动被 `journal missing explicit stopped state` 拒绝，确认网络资源已清理后删除 `journal.json`，再启动历史版本；
+4. 重新启动历史版本守护进程。
+
+---
+
+## 撤回
+
+若发现重大安全漏洞或内核崩溃缺陷，项目维护者将在 Release 页面标明 `REVOKED — DO NOT USE`，下架对应二进制资产，并通过 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布安全修复通告。
