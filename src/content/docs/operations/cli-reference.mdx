@@ -107,6 +107,13 @@ frp-tun run [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 - `-c`, `--config <path>`: 配置文件路径，默认为 `/etc/frp-tun/config.toml`。
 - `--socket <path>`: 控制套接字监听路径，默认为 `/var/run/frp-tun.sock`。
 
+**v0.5.6 启动来源**：
+
+- 状态目录中的 `journal.json`（默认 `/etc/frp-tun/journal.json`）记录服务应启用且配置摘要一致时，`run` 恢复这份已提交配置，而不是磁盘上后来改过的配置文件；
+- 配置文件缺失、无法解析，或与 journal 不一致时，启动仍使用 journal，并在错误输出写入 `config file ignored`；
+- journal 文件不存在时，才按 `-c` 指定的配置文件全新激活；
+- journal 损坏、摘要不符、启用状态不一致或缺少可校验配置时，进程以退出码 4 拒绝启动，不会改用配置文件。
+
 **运行生命周期**：
 - 支持接收 `SIGINT`（Ctrl+C）或 `SIGTERM` 信号。收到信号后将优雅停机（Graceful Shutdown），解除网络接口绑定，保留网络黑洞防护状态。
 
@@ -145,7 +152,7 @@ frp-tun doctor [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 **在线模式输出示例**：
 ```text
 [OK] configuration parsed and validated
-[ONLINE] daemon active (socket: /var/run/frp-tun.sock, site: site-a, version: v0.5.5)
+[ONLINE] daemon active (socket: /var/run/frp-tun.sock, site: site-a, version: v0.5.6)
 [OK] active carrier: direct-quic (role=dialer, transport=quic, session=sess-01)
 [OK] active QoS: rtt=18ms (smoothed=19ms), loss=0.0% (pongs=10/10)
 [OK] standby carrier: direct-quic-v6 (healthy=true, fails=0)
@@ -173,7 +180,7 @@ frp-tun doctor [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 
 ### 2.8 apply（配置热重载）
 
-在不中断现有隧道连接和数据转发的前提下，向运行中的守护进程动态加载新的配置规则。
+向运行中的守护进程提交新配置。可以增量更新的字段不会重建运行时；需要重建时会先停止旧运行时。`v0.5.6` 起，提交过程失败会尝试回到上一代，而不是留下半成品。
 
 ```bash
 frp-tun apply [-c /path/to/new_config.toml] [--socket /var/run/frp-tun.sock]
@@ -181,6 +188,13 @@ frp-tun apply [-c /path/to/new_config.toml] [--socket /var/run/frp-tun.sock]
 
 - `-c`, `--config <path>`: 新的配置文件路径，默认为 `/etc/frp-tun/config.toml`。
 - `--socket <path>`: 目标运行实例控制套接字路径，默认为 `/var/run/frp-tun.sock`。
+
+**v0.5.6 失败回滚**：
+
+- 已有上一代配置时，隔离、转发、运行时或 journal 写入失败会在 30 秒内先恢复上一代隔离，再重建上一代运行时。原始错误仍返回给调用方。journal 只在整次 `apply` 成功后更新，已记录的退役 IPv6 前缀会保留；
+- 回滚本身失败或超时后，服务标记为未激活。此后 `apply` 失败并包含 `restart required`，需要重启进程后才能再次提交；
+- 客户端断开会取消这次 `apply`。回滚使用独立的 30 秒预算，不跟随该取消。控制套接字为 `apply` 保留 90 秒，操作本身限 60 秒；`down` 仍为 60 秒；
+- 校验失败，或试图修改站点 ID，会在改动系统之前拒绝，不触发回滚。
 
 ---
 
@@ -194,6 +208,8 @@ frp-tun down [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 
 - `-c`, `--config <path>`: 配置文件路径（离线恢复时必选），默认为 `/etc/frp-tun/config.toml`。
 - `--socket <path>`: 控制套接字路径。若守护进程正在运行，将优先通过 socket 触发主动销毁；若进程已异常终止，将基于配置文件执行离线幂等清理。
+
+`down` 会写入停用 journal，但 `v0.5.6` 的这条记录不含站点 ID。下一次 `run` 会拒绝它并报告 `journal missing explicit stopped state`。确认本实例网络资源已经清理之后，删除状态目录中的 `journal.json`，下一次 `run` 才会按配置文件全新激活。服务仍应保持已提交配置时，不要删除该文件。
 
 ---
 
@@ -231,4 +247,4 @@ frp-tun disable-ipv6 [--socket /var/run/frp-tun.sock]
 | `0` | **Success** | 命令执行成功完成。 |
 | `2` | **Usage / Config Error** | 命令行参数缺失、选项非法，或配置文件语法校验失败。 |
 | `3` | **Prerequisite Failure** | 操作系统环境前置条件未满足（例如缺少 TUN 设备访问权限、策略路由产生严重冲突）。 |
-| `4` | **Runtime Failure** | 守护进程启动异常、核心组件初始化失败或控制套接字通信超时。 |
+| `4` | **Runtime Failure** | 守护进程启动异常、核心组件初始化失败、控制套接字通信超时，或 journal 拒绝恢复。 |

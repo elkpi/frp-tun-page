@@ -12,3 +12,5 @@ version: preview
 4. If connectivity degradation occurs, immediately restore the previously verified binary and reinstate baseline routing rules.
 
 Upgrades must never overwrite or flush routing tables or firewall chains not owned by `frp-tun`.
+
+Starting with `v0.5.6`, a restart after replacing the binary restores the committed journal when one says the service should be enabled. It does not apply a config file edited later. Change configuration with `frp-tun apply` against the running instance. Automatic rollback after a failed `apply` is documented in the [CLI reference](/en/operations/cli-reference/) and is not the same as restoring an older binary.

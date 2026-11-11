@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Diagnosing preview deployment issues, session slot exhaustion, and MTU blackholes without disclosing sensitive infrastructure material.
+description: Diagnosing preview deployment issues, session slot exhaustion, MTU blackholes, and journal recovery without disclosing sensitive infrastructure material.
 version: preview
 ---
 
@@ -63,3 +63,23 @@ Public issue submissions should only include sanitized version numbers, operatin
         list device 'frp-tun:site-a'
     ```
   - Running `frp-tun doctor` automatically checks `mtu_fix` compliance in manual mode.
+
+---
+
+### 2.3 Edited config file, but restart still runs the old configuration
+
+- **Symptom**: After editing `/etc/frp-tun/config.toml` and restarting, `doctor` or `status` still shows the previous configuration. Stderr may contain `config file ignored`.
+- **Cause**: On `v0.5.6`, when the journal says the service should be enabled, `run` restores the committed configuration and does not apply the edited file.
+- **Action**: Leave the process running and submit the new file with `frp-tun apply -c /etc/frp-tun/config.toml`. Do not rely on a restart to pick up file edits.
+
+### 2.4 `apply` stops accepting another apply
+
+- **Symptom**: `apply` returns an error containing `rollback failed`, and the next `apply` returns an error containing `restart required`.
+- **Cause**: Rollback to the previous generation failed or exceeded 30 seconds. The process marks the service inactive and refuses further `apply` calls so it does not change the system again before isolation is restored. The failed attempt does not replace the committed journal.
+- **Action**: Restart the daemon so `run` restores the last successfully committed configuration from the journal. Run `apply` again only after that restart if the configuration still needs to change.
+
+### 2.5 `run` refuses to start after `down`
+
+- **Symptom**: After `frp-tun down` succeeds, the next `run` exits 4 with `journal missing explicit stopped state`.
+- **Cause**: The stopped journal written by `down` has no site identifier, and `v0.5.6` does not treat it as an explicit stopped record.
+- **Action**: Confirm this instance's interfaces, policy routes, and firewall objects are gone, then delete `journal.json` in the state directory (default `/etc/frp-tun/journal.json`) and run again. Do not delete that file while the service should keep its committed configuration.

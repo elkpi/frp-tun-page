@@ -1,6 +1,6 @@
 ---
 title: 故障排查
-description: 在不泄露敏感网络资料的前提下定位预览部署问题、会话槽位挂起与 MTU 黑洞。
+description: 在不泄露敏感网络资料的前提下定位预览部署问题、会话槽位挂起、MTU 黑洞与 journal 恢复问题。
 version: preview
 ---
 
@@ -61,3 +61,23 @@ version: preview
         list device 'frp-tun:site-a'
     ```
   - 运行 `frp-tun doctor` 可自动预检 manual 防火墙的 `mtu_fix` 合规性。
+
+---
+
+### 2.3 改了配置文件并重启，但运行的仍是旧配置
+
+- **现象**：编辑 `/etc/frp-tun/config.toml` 后重启，`doctor` 或 `status` 仍反映改动前的配置。错误输出可能包含 `config file ignored`。
+- **原因**：`v0.5.6` 在 journal 记录服务应启用时，`run` 恢复已提交配置，不读取后来改过的文件。
+- **处理**：保持进程运行，用 `frp-tun apply -c /etc/frp-tun/config.toml` 提交新配置。不要靠重启来应用文件改动。
+
+### 2.4 `apply` 之后服务不再接受下一次 apply
+
+- **现象**：`apply` 返回包含 `rollback failed` 的错误，随后再次 `apply` 返回包含 `restart required` 的错误。
+- **原因**：回滚上一代配置时失败或超过 30 秒。进程把服务标为未激活，并拒绝继续 `apply`，避免在隔离没有恢复的情况下再改一次。已提交的 journal 不会被这次失败覆盖。
+- **处理**：重启守护进程，让 `run` 按 journal 恢复上一份成功提交的配置。重启后若仍需改配置，再执行 `apply`。
+
+### 2.5 `down` 之后 `run` 拒绝启动
+
+- **现象**：`frp-tun down` 成功后，下一次 `run` 以退出码 4 结束，错误包含 `journal missing explicit stopped state`。
+- **原因**：`down` 写入的停用 journal 没有站点 ID，`v0.5.6` 不把它当作一份明确的停用记录。
+- **处理**：确认本实例的接口、策略路由和防火墙对象已经清理，然后删除状态目录中的 `journal.json`（默认 `/etc/frp-tun/journal.json`），再执行 `run`。服务仍应保持已提交配置时，不要删除该文件。
