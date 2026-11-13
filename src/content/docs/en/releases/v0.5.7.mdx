@@ -1,0 +1,69 @@
+---
+title: frp-tun v0.5.7
+description: On-demand performance observations, adaptive datagram sizing and tunnel MTU, and recovery and lifecycle fixes.
+slug: en/releases/v0.5.7
+version: v0.5.7
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 13, 2026
+>
+> **Assets**: UPX-compressed binaries for multiple architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- On-demand `frp-tun perf` sampling reports per-peer interval throughput, CPU, RSS, probe RTT, jitter and loss, fragmentation and frame counts, confirmed datagram payload limit, and more. `doctor` corrects forwarding and firewall diagnostics; `status` exposes observation errors, traffic counter generations, and datagram availability.
+- The QUIC datagram send limit is no longer fixed at 1200. It probes the path and converges when the path changes or a `DatagramTooLargeError` occurs. The new `p2p.mtu_adjust` policy supports `suggest` (default), `auto`, and `off`. Suggested MTU accounts for WireGuard padding and encapsulation overhead.
+- Recovery now handles owned rules and routes when the network journal is empty and recognizes connected routes on owned interfaces. Fixes cover `apply` half-close cancellation, runtime context lifetime, and canceled applies committing; gateway port mapping retries with backoff.
+
+## Downloads
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.7_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.7/frp-tun_v0.5.7_amd64) |
+| Linux arm | `frp-tun_v0.5.7_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.7/frp-tun_v0.5.7_arm) |
+| Linux arm64 | `frp-tun_v0.5.7_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.7/frp-tun_v0.5.7_arm64) |
+| Linux mips | `frp-tun_v0.5.7_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.7/frp-tun_v0.5.7_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.7_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.7/frp-tun_v0.5.7_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.7/checksums.txt) |
+
+## Verification
+
+After downloading all files into one directory, run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its SHA-256 against the corresponding digest below.
+
+```text
+0b890226d19a87ab5fc4ecc0ec903531d498f4aec5e579c4c836366f039b8c33  frp-tun_v0.5.7_amd64
+28b66c289e3e3b34efe8c881f1ffbd4c644b6c5db964e925199ed3a74df05b19  frp-tun_v0.5.7_arm
+34ed792e52945ba431cf073bb4fadb7e2a23e96bb8c01088c77985f0d9ce1339  frp-tun_v0.5.7_arm64
+9e6ae2dfdc22c7c05b1f6fe0b0bea57aeb09f0986717dc0b46b9028a54a6fc75  frp-tun_v0.5.7_mipsle-softfloat
+926ba0c3f7964587321c8e012042dcc350c6ac7e74db138da78a42afd8fa3982  frp-tun_v0.5.7_mips-softfloat
+```
+
+## Validated scope
+
+- All five release binaries were checked against `checksums.txt`.
+- In the upstream real-device A/B test on OpenWrt MT7981B at approximately 1.1 Mbps unidirectional throughput, MTU 1360 and a confirmed path payload limit of 1396 produced zero `tx_frag`, `fragment_frames`, and `reassembled` counts. Receive-side CPU increment fell approximately 29% and send-side approximately 15%. Per-packet QUIC encryption and framing remained the main send-side cost. These results apply to the tested device and conditions.
+- Upstream reports regression tests for cross-process crash recovery and failed `apply` operations.
+
+## Known limitations
+
+- MTU recommendations, fragmentation, and CPU savings depend on hardware, network path, and load; validate them in the target environment.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. See [Upgrade & rollback](/en/operations/upgrade-rollback/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).
