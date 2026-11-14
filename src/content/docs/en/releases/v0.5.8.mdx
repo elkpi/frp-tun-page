@@ -1,0 +1,68 @@
+---
+title: frp-tun v0.5.8
+description: Session-change semantics fix for the dynamic MTU observer, and a real-device CPU measurement caliber note.
+slug: en/releases/v0.5.8
+version: v0.5.8
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 14, 2026
+>
+> **Assets**: UPX-compressed binaries for multiple architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- Fixed session-change semantics in the `p2p.mtu_adjust` observer: after a session or path change, the stability window and same-value suggestion deduplication both reset. The 30-minute action cooldown in `auto` mode persists across sessions, preventing automatic MTU changes from being triggered on a newly observed path.
+- Documentation adds a CPU measurement caliber note for the real-device A/B test: the two sides run userspace and kernel WireGuard backends respectively, CPU figures come from process rusage, and values from the two sides are not directly comparable.
+
+## Downloads
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.8_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_amd64) |
+| Linux arm | `frp-tun_v0.5.8_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_arm) |
+| Linux arm64 | `frp-tun_v0.5.8_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_arm64) |
+| Linux mips | `frp-tun_v0.5.8_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.8_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/checksums.txt) |
+
+## Verification
+
+After downloading all files into one directory, run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its SHA-256 against the corresponding digest below.
+
+```text
+fa6a979d206bf5eddbcb1e0d7ad754fea08c4aba8e4feeaac28a38cc06d53a72  frp-tun_v0.5.8_amd64
+97164bddaf034c5416e5af8d9c0fda360f66daf9fb102a53c6aa0fa8ebf604cf  frp-tun_v0.5.8_arm
+d5a2407839dfec480b2c19d943cf56e35f83312749ed6e8451875afa97493bd5  frp-tun_v0.5.8_arm64
+2ec4416bf5dc5dfccc64a4abd878fd8c08f48f548841977088061775c7c17243  frp-tun_v0.5.8_mipsle-softfloat
+040b5b270f9b87b4b9f30bda47f2faf394c675a740b02a0877d5694f445f12f0  frp-tun_v0.5.8_mips-softfloat
+```
+
+## Validated scope
+
+- All five release binaries were checked against `checksums.txt`.
+- The `suggest` and `auto` modes of dynamic MTU have been confirmed on two MT7981B devices in real-device validation; detailed measurements will be published once archived.
+- CPU measurement caliber note: in the real-device A/B test reported in [v0.5.7](/en/releases/v0.5.7/), the receive-side and send-side CPU increments came from different WireGuard backends — one side runs a userspace implementation whose WireGuard encryption counts toward process CPU, while the other runs a kernel implementation that does not. Both figures use process rusage, values from the two sides are not directly comparable, and each is only meaningful against its own A/B baseline.
+
+## Known limitations
+
+- MTU recommendations, fragmentation, and CPU savings depend on hardware, network path, and load; validate them in the target environment.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. See [Upgrade & rollback](/en/operations/upgrade-rollback/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).

@@ -1,0 +1,68 @@
+---
+title: frp-tun v0.5.8
+description: 动态 MTU 观察器的会话切换语义修复，以及真机 CPU 测量口径注记。
+slug: releases/v0.5.8
+version: v0.5.8
+status: release
+published: true
+---
+
+> **正式发布版本**
+>
+> **发布日期**：2026 年 11 月 14 日
+>
+> **发布文件**：多架构 UPX 二进制与校验和文件
+>
+> **使用许可**：遵循 [最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+## 摘要
+
+- 修复 `p2p.mtu_adjust` 观察器的会话切换语义：会话或路径切换后，稳定观察窗口与同值建议去重均会重置；`auto` 模式的 30 分钟动作冷却跨会话保留，杜绝基于未观察到的新路径触发自动 MTU 变更。
+- 文档补充真机 A/B 测试的 CPU 测量口径注记：A/B 两侧分别运行用户态与内核态 WireGuard 后端，CPU 数据来自进程 rusage 口径，两端数值不可横向比较。
+
+## 下载与二进制资产
+
+| 架构 | 文件 | 下载 |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.8_amd64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_amd64) |
+| Linux arm | `frp-tun_v0.5.8_arm` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_arm) |
+| Linux arm64 | `frp-tun_v0.5.8_arm64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_arm64) |
+| Linux mips | `frp-tun_v0.5.8_mips-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.8_mipsle-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/frp-tun_v0.5.8_mipsle-softfloat) |
+| 校验清单 | `checksums.txt` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.8/checksums.txt) |
+
+## 验证
+
+下载全部文件后，可在同一目录执行 `sha256sum -c checksums.txt`。只下载单个架构时，请将该文件的 SHA-256 与以下对应摘要比较。
+
+```text
+fa6a979d206bf5eddbcb1e0d7ad754fea08c4aba8e4feeaac28a38cc06d53a72  frp-tun_v0.5.8_amd64
+97164bddaf034c5416e5af8d9c0fda360f66daf9fb102a53c6aa0fa8ebf604cf  frp-tun_v0.5.8_arm
+d5a2407839dfec480b2c19d943cf56e35f83312749ed6e8451875afa97493bd5  frp-tun_v0.5.8_arm64
+2ec4416bf5dc5dfccc64a4abd878fd8c08f48f548841977088061775c7c17243  frp-tun_v0.5.8_mipsle-softfloat
+040b5b270f9b87b4b9f30bda47f2faf394c675a740b02a0877d5694f445f12f0  frp-tun_v0.5.8_mips-softfloat
+```
+
+## 已验证范围
+
+- 五种架构的发行二进制均已与 `checksums.txt` 比对通过。
+- 动态 MTU 的 `suggest` 与 `auto` 模式已在两台 MT7981B 设备的真机验证中确认通过；详细测量数据待入库后披露。
+- CPU 测量口径注记：[v0.5.7](/releases/v0.5.7/) 报告的真机 A/B 测试中，接收侧与发送侧的 CPU 增量分别来自不同的 WireGuard 后端——一端为用户态实现，WireGuard 加解密计入进程 CPU；另一端为内核态实现，不含该部分。两者均为进程 rusage 口径，两端数值不可横向比较，各自仅用于与自身 A/B 基线对比。
+
+## 已知限制
+
+- 硬件、网络路径和负载不同，MTU 建议、分片情况及 CPU 收益可能不同；请在目标环境验证。
+- 交叉编译资产不构成特定硬件、持续高负载、非零 `SO_MARK` 或复杂 NAT 场景的兼容性保证。
+- 软件不提供自动更新或可用性 SLA；请参阅 [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+
+## 升级
+
+在维护窗口备份现有配置和旧版二进制，确认独立的回退路径。下载匹配架构的二进制并核对摘要后，停止服务、替换二进制并重启，然后运行 `frp-tun doctor` 检查状态。已有启用 journal 时，重启恢复已提交配置；需要更改配置时使用 `frp-tun apply`。详见[升级与回退](/operations/upgrade-rollback/)。
+
+## 回退
+
+停止服务，恢复备份的旧版二进制，再启动并检查状态。配置回退和二进制回退并非同一操作；操作前请核对目标旧版的发行说明及其 journal 行为。
+
+## 撤回
+
+如发现重大安全或稳定性问题，维护者将在公开 Release 页面标记撤回，并按 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布通告。
