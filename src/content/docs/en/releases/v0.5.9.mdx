@@ -1,0 +1,73 @@
+---
+title: frp-tun v0.5.9
+description: 'Go performance optimization phase one: frame IO fast paths with zero-allocation loopback transfer, event-driven active-pump management, and a controlled-load benchmark with closure checks.'
+slug: en/releases/v0.5.9
+version: v0.5.9
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 14, 2026
+>
+> **Assets**: UPX-compressed binaries for multiple architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- Frame IO fast paths: the loopback Endpoint now uses `netip` value-type addresses for zero-allocation transfers (heap allocations per operation reduced from 2 to 0); new full-frame datagram interfaces `frame.ReadWriter` and `Link.ReadFrame`/`WriteFrame`, with `ErrMixedFrameIO` distinguishing whole-frame IO from streaming IO; the pump and all four runner classes take the frame fast path, covering active/candidate/standby/retired paths.
+- Active-pump management is now event-driven, removing the per-peer 50ms polling loop; fixed candidate handover after the active pump fails.
+- Added a controlled-load benchmark `bench_pump.py` with a fixed 18-combination matrix and accounting closure checks.
+- Performance caliber: in a controlled comparison using the same binary, per-packet heap allocations in the send direction dropped 12.5%; the receive direction is unchanged, and CPU shows no significant change. The phase-one effect thresholds (heap ≥30%, CPU ≥10%) were not met; phase-two candidates are frozen pending real-device profiling.
+- The dynamic MTU capability introduced in [v0.5.7](/en/releases/v0.5.7/) and finalized in [v0.5.8](/en/releases/v0.5.8/) is unchanged, and the MT7981B two-device real-device validation conclusions stand.
+
+## Downloads
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.9_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_amd64) |
+| Linux arm | `frp-tun_v0.5.9_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_arm) |
+| Linux arm64 | `frp-tun_v0.5.9_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_arm64) |
+| Linux mips | `frp-tun_v0.5.9_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.9_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/checksums.txt) |
+
+## Verification
+
+After downloading all files into one directory, run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its SHA-256 against the corresponding digest below.
+
+```text
+1760233e458f5d65618cb001be5037925957a3270a573a52e6e62d3ad56070fb  frp-tun_v0.5.9_amd64
+b2a1a7247a8ba1543e661faeb1538c92f0149a49f5260eb70146c41fb4a22f64  frp-tun_v0.5.9_arm
+afceef0b89b1d09cd5492604131970dcd4cc09c2013779a9616006119b32d3b7  frp-tun_v0.5.9_arm64
+bb4b2ccaeae7cbf1d5d4a0c8c3c0f832f8f0f60298bc54471b78d646b418cdb4  frp-tun_v0.5.9_mipsle-softfloat
+9dd06db6ca026fcfb66cb89e7af36a27ef63defc718930c01f5b00adee928645  frp-tun_v0.5.9_mips-softfloat
+```
+
+## Validated scope
+
+- All five release binaries were checked against `checksums.txt`.
+- The controlled-load benchmark uses the same binary in a controlled comparison, covers a fixed 18-combination matrix, and passes accounting closure checks: per-packet heap allocations in the send direction dropped 12.5%, the receive direction is unchanged, and CPU shows no significant change.
+- Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+- The real-device validation conclusions for the `suggest` and `auto` modes of dynamic MTU carry over from [v0.5.8](/en/releases/v0.5.8/); this release does not change that behavior.
+
+## Known limitations
+
+- Benchmark results and actual savings depend on hardware, network path, and load; validate them in the target environment.
+- Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. See [Upgrade & rollback](/en/operations/upgrade-rollback/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).

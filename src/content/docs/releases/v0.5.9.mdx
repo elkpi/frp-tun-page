@@ -1,0 +1,73 @@
+---
+title: frp-tun v0.5.9
+description: Go 性能优化第一阶段：帧收发快速路径与零分配 loopback IO、活动泵事件驱动管理，以及受控负载基准与计数闭合校验。
+slug: releases/v0.5.9
+version: v0.5.9
+status: release
+published: true
+---
+
+> **正式发布版本**
+>
+> **发布日期**：2026 年 11 月 14 日
+>
+> **发布文件**：多架构 UPX 二进制与校验和文件
+>
+> **使用许可**：遵循 [最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+## 摘要
+
+- 帧收发快速路径：loopback Endpoint 改用 `netip` 值类型地址实现零分配收发（单次操作堆分配由 2 降至 0）；新增 Datagram 完整帧接口 `frame.ReadWriter` 与 `Link.ReadFrame`/`WriteFrame`，以 `ErrMixedFrameIO` 区分整帧 IO 与流式 IO 的混用；Pump 与四类 Runner 接入帧快速路径，活动/候选/备用/退役路径全覆盖。
+- 活动泵管理改为事件驱动，移除每 peer 50ms 轮询；修复活动泵失效后候选交接的缺陷。
+- 新增受控负载基准 `bench_pump.py`：固定 18 组合矩阵，附带计数闭合校验。
+- 性能口径：同一二进制的受控对照下，发送方向每包堆分配降低 12.5%，接收方向无变化，CPU 无显著变化。第一阶段计划效果门槛（heap ≥30%、CPU ≥10%）未达成，第二阶段候选已冻结，待真机 profile 后评估。
+- [v0.5.7](/releases/v0.5.7/) 引入、[v0.5.8](/releases/v0.5.8/) 收尾的动态 MTU 能力保持不变，MT7981B 双机真机验证结论不变。
+
+## 下载与二进制资产
+
+| 架构 | 文件 | 下载 |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.9_amd64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_amd64) |
+| Linux arm | `frp-tun_v0.5.9_arm` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_arm) |
+| Linux arm64 | `frp-tun_v0.5.9_arm64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_arm64) |
+| Linux mips | `frp-tun_v0.5.9_mips-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.9_mipsle-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/frp-tun_v0.5.9_mipsle-softfloat) |
+| 校验清单 | `checksums.txt` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.9/checksums.txt) |
+
+## 验证
+
+下载全部文件后，可在同一目录执行 `sha256sum -c checksums.txt`。只下载单个架构时，请将该文件的 SHA-256 与以下对应摘要比较。
+
+```text
+1760233e458f5d65618cb001be5037925957a3270a573a52e6e62d3ad56070fb  frp-tun_v0.5.9_amd64
+b2a1a7247a8ba1543e661faeb1538c92f0149a49f5260eb70146c41fb4a22f64  frp-tun_v0.5.9_arm
+afceef0b89b1d09cd5492604131970dcd4cc09c2013779a9616006119b32d3b7  frp-tun_v0.5.9_arm64
+bb4b2ccaeae7cbf1d5d4a0c8c3c0f832f8f0f60298bc54471b78d646b418cdb4  frp-tun_v0.5.9_mipsle-softfloat
+9dd06db6ca026fcfb66cb89e7af36a27ef63defc718930c01f5b00adee928645  frp-tun_v0.5.9_mips-softfloat
+```
+
+## 已验证范围
+
+- 五种架构的发行二进制均已与 `checksums.txt` 比对通过。
+- 受控负载基准为同一二进制的受控对照，覆盖固定 18 组合矩阵，计数闭合校验通过：发送方向每包堆分配降低 12.5%，接收方向无变化，CPU 无显著变化。
+- 64MB/16MB 内存设备仍为压力评估档，非支持声明。
+- 动态 MTU 的 `suggest` 与 `auto` 模式真机验证结论延续 [v0.5.8](/releases/v0.5.8/)，本版未改动相关行为。
+
+## 已知限制
+
+- 硬件、网络路径和负载不同，基准结果与实际收益可能不同；请在目标环境验证。
+- 64MB/16MB 内存设备仍为压力评估档，非支持声明。
+- 交叉编译资产不构成特定硬件、持续高负载、非零 `SO_MARK` 或复杂 NAT 场景的兼容性保证。
+- 软件不提供自动更新或可用性 SLA；请参阅 [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+
+## 升级
+
+在维护窗口备份现有配置和旧版二进制，确认独立的回退路径。下载匹配架构的二进制并核对摘要后，停止服务、替换二进制并重启，然后运行 `frp-tun doctor` 检查状态。已有启用 journal 时，重启恢复已提交配置；需要更改配置时使用 `frp-tun apply`。详见[升级与回退](/operations/upgrade-rollback/)。
+
+## 回退
+
+停止服务，恢复备份的旧版二进制，再启动并检查状态。配置回退和二进制回退并非同一操作；操作前请核对目标旧版的发行说明及其 journal 行为。
+
+## 撤回
+
+如发现重大安全或稳定性问题，维护者将在公开 Release 页面标记撤回，并按 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布通告。

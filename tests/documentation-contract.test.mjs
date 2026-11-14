@@ -87,6 +87,7 @@ test('all documentation pages have an English counterpart', () => {
     'en/releases/v0.5.6.mdx',
     'en/releases/v0.5.7.mdx',
     'en/releases/v0.5.8.mdx',
+    'en/releases/v0.5.9.mdx',
   ];
 
   for (const page of expectedEnglishPages) {
