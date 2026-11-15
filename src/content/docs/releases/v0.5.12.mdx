@@ -1,0 +1,77 @@
+---
+title: frp-tun v0.5.12
+description: '修复批量 sendmmsg/recvmmsg 负计数无法回退单包的问题，Endpoint 批写按调用复用缓冲。生产默认仍为批量接收，接收模式对照只是诊断样本。'
+slug: releases/v0.5.12
+version: v0.5.12
+status: release
+published: true
+---
+
+> **正式发布版本**
+>
+> **发布日期**：2026 年 11 月 15 日
+>
+> **发布文件**：五种架构的 UPX 二进制与校验和文件
+>
+> **使用许可**：遵循[最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+## 摘要
+
+- **批量负计数回退**：修复批量 `sendmmsg`/`recvmmsg` 返回负计数时无法回退单包的问题。Bind 与 Endpoint 在批量调用部分成功后，不再重复发送或提前结束；取消与非法计数均已覆盖。
+- **Endpoint 批写缓冲**：批写改为按调用复用缓冲，并在每个分块前响应取消。
+- **生产默认不变**：接收模式与发送批量能力分开。生产默认仍是批量接收，本版没有切换到小包接收模式。
+- **诊断样本，不是性能结论**：接收模式对照只有诊断样本。1000 pps 用户态 WireGuard 基准的 60 个样本全部闭合，但关键指标单侧波动超过 10%。因此不宣称稳定性能收益，也未据此运行更高负载。
+- **资源目标不变**：支持目标仍为 128MB RAM / 32MB Flash。64MB/16MB 仍是压力评估档，不是支持声明。
+- [v0.5.11](/releases/v0.5.11/) 及更早版本已验证的能力和结论继续有效。
+
+## 下载与二进制资产
+
+以下链接指向官网 v0.5.12 GitHub Release。五种架构二进制均已按同一 Release 的 `checksums.txt` 执行 `sha256sum -c` 并通过。
+
+| 架构 | 文件 | 下载 |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.12_amd64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_amd64) |
+| Linux arm | `frp-tun_v0.5.12_arm` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_arm) |
+| Linux arm64 | `frp-tun_v0.5.12_arm64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_arm64) |
+| Linux mips | `frp-tun_v0.5.12_mips-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.12_mipsle-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_mipsle-softfloat) |
+| 校验清单 | `checksums.txt` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/checksums.txt) |
+
+## 验证
+
+将所需资产下载到同一目录后运行 `sha256sum -c checksums.txt`。如只下载单个架构，请将该文件的摘要与下表对应值比较。
+
+```text
+3d33430214af45958255a1112ac720a4fe20eeb60de4dda03fc92463b96cf62d  frp-tun_v0.5.12_amd64
+391c987cd50cba5cee9c34fa216ae57c5fd8fe0ff9a27055f3c0d1d5bbffea98  frp-tun_v0.5.12_arm
+bbbc5fedf8baf0cace0c03973bac0404232ee38587479d4ce6bc28fe080b263e  frp-tun_v0.5.12_arm64
+b5567a01ccefd76ed4e547b0f699b98bee676b55f4c44706ec308c8be84a873a  frp-tun_v0.5.12_mips-softfloat
+cfd4eec127f1aa8ace21721bbbff5d9d6c3ba74fc3c3a98f17ecec3994aa1e2b  frp-tun_v0.5.12_mipsle-softfloat
+```
+
+## 已验证范围
+
+- 官方五架构发行二进制均已与随附的 `checksums.txt` 比对通过。
+- 批量负计数回退、部分成功后的发送边界，以及取消与非法计数路径，已由上游发布测试覆盖。
+- 1000 pps 用户态 WireGuard 诊断样本 60 个全部闭合；关键指标单侧波动超过 10%，因此未切换接收模式，也不把该对照当作稳定性能收益。
+- 资源目标未改变：128MB RAM / 32MB Flash 仍是支持目标；64MB/16MB 仍为压力评估档，非支持声明。
+
+## 已知限制
+
+- 接收模式对照只是诊断样本。波动超过 10% 的结果不能支持稳定性能收益，小包接收模式也没有成为生产默认。
+- 本版未在物理设备、内核 WireGuard、真实运营商链路或非零 `SO_MARK` 上完成验证。
+- 64MB/16MB 内存设备仍为压力评估档，非支持声明。
+- 交叉编译资产不构成特定硬件、持续高负载、非零 `SO_MARK` 或复杂 NAT 场景的兼容性保证。
+- 软件不提供自动更新或可用性 SLA；请参阅 [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+
+## 升级
+
+在维护窗口备份现有配置和旧版二进制，确认独立回退路径。下载匹配架构的二进制并核对摘要后，停止服务、替换二进制并重启，然后运行 `frp-tun doctor` 检查状态。已有启用 journal 时，重启恢复已提交配置；需要更改配置时使用 `frp-tun apply`。详见[升级与回退](/operations/upgrade-rollback/)。
+
+## 回退
+
+停止服务，恢复备份的旧版二进制，再启动并检查状态。配置回退和二进制回退并非同一操作；操作前请核对目标旧版的发行说明及其 journal 行为。
+
+## 撤回
+
+如发现重大安全或稳定性问题，维护者将在公开 Release 页面标记撤回，并按 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布通告。
