@@ -1,12 +1,13 @@
 ---
 title: 发行说明与版本历史
 description: frp-tun 正式版本资产、SHA256 校验和、升级回退指南与验证证据。
-version: v0.5.10
+version: v0.5.11
 ---
 
 在此查阅 `frp-tun` 历次公开发行版本的二进制下载地址、SHA256 校验清单与验证记录：
 
-- [v0.5.10 (当前稳定版本)](/releases/v0.5.10/)：Go 性能优化第二阶段第一轮——发送缓冲复用与出站直入池化缓冲，以及真实 QUIC 基准与 CPU profile 归因。
+- [v0.5.11 (当前稳定版本)](/releases/v0.5.11/)：LoopbackBind 与 Endpoint 批量收发、惰性过期；公平基准显示 CPU 收益仅在 1400B 档有实证，heap 每包对象数增加。
+- [v0.5.10](/releases/v0.5.10/)：Go 性能优化第二阶段第一轮——发送缓冲复用与出站直入池化缓冲，以及真实 QUIC 基准与 CPU profile 归因。
 - [v0.5.9](/releases/v0.5.9/)：Go 性能优化第一阶段——帧收发快速路径与零分配 loopback IO、活动泵事件驱动管理，以及受控负载基准。
 - [v0.5.8](/releases/v0.5.8/)：动态 MTU 观察器的会话切换语义修复，以及真机 CPU 测量口径注记。
 - [v0.5.7](/releases/v0.5.7/)：按需性能采样、自适应 datagram 大小与隧道 MTU，以及恢复和生命周期修复。
