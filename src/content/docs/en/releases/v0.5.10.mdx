@@ -1,0 +1,74 @@
+---
+title: frp-tun v0.5.10
+description: 'Go performance optimization phase two, round one: FD send-buffer reuse, outbound reads into pooled buffers, and real-QUIC controlled benchmarks with CPU profile attribution.'
+slug: en/releases/v0.5.10
+version: v0.5.10
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 15, 2026
+>
+> **Assets**: UPX-compressed binaries for multiple architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- Send-path buffer reuse: the FD send buffer is now reused across packets, saving one heap allocation per packet on the send path; the quic-go `SendDatagram` always-copy contract is pinned in comments to prevent accidental regressions.
+- Outbound reads into pooled buffers: outbound reads now write directly into pooled buffers, saving one copy per packet; after allocation, failure paths return the buffer in place.
+- Real-QUIC controlled benchmark: a controlled benchmark over a real `transport=quic` path, with the benchmark matrix expanded to 30 combinations and CPU profile attribution.
+- Performance caliber: in a main/head same-version benchmark comparison (median of 5 samples), per-packet heap allocations on the datagram path dropped 24.9%~28.5% (stable); the CPU direction shows no consistent improvement or regression, with combinations whose MAD exceeds 10% honestly labeled unstable. pprof attributes 44.3% of samples to syscall (whole-process caliber); the batch send/receive direction holds, but further measurement is needed on a path that includes the userspace WireGuard link.
+- The phase-one capabilities from [v0.5.9](/en/releases/v0.5.9/) (controlled benchmark, zero-allocation Endpoint, Datagram full-frame interfaces, event-driven pump management) and the dynamic MTU real-device validation conclusions remain in effect.
+
+## Downloads
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.10_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_amd64) |
+| Linux arm | `frp-tun_v0.5.10_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_arm) |
+| Linux arm64 | `frp-tun_v0.5.10_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_arm64) |
+| Linux mips | `frp-tun_v0.5.10_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.10_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/checksums.txt) |
+
+## Verification
+
+After downloading all files into one directory, run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its SHA-256 against the corresponding digest below.
+
+```text
+36b1b412e88dc18f8102e515aba413b6f8765cb7482c7ed6ff472cc6cc6e5f79  frp-tun_v0.5.10_amd64
+0a7dd1b2a3137d013105c5f1769401f22574e058cd9294d1d4294dedee6cc28b  frp-tun_v0.5.10_arm
+e5131e95261e03e94bbcdee4494dca3a4beb4e3da3b615c5d78d407b28cadd66  frp-tun_v0.5.10_arm64
+9eca0b12ae4931045984465e56be7f64da08311f3776c30aeccbe4ceb7a7e4ad  frp-tun_v0.5.10_mipsle-softfloat
+b36e0e9be5278715e54f49563b7a3463645f3eff159f4f84d633668ccb80b9d1  frp-tun_v0.5.10_mips-softfloat
+```
+
+## Validated scope
+
+- All five release binaries were checked against `checksums.txt`.
+- The benchmark is a main/head same-version comparison with a median of 5 samples: per-packet heap allocations on the datagram path dropped 24.9%~28.5% (stable); the CPU direction shows no consistent improvement or regression, with combinations whose MAD exceeds 10% labeled unstable.
+- pprof attributes 44.3% of samples to syscall (whole-process caliber); the batch send/receive direction holds, and further measurement on a path that includes the userspace WireGuard link is pending.
+- Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+- The real-device validation conclusions for the `suggest` and `auto` modes of dynamic MTU carry over from [v0.5.8](/en/releases/v0.5.8/); this release does not change that behavior.
+
+## Known limitations
+
+- Benchmark results and actual savings depend on hardware, network path, and load; validate them in the target environment.
+- Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. See [Upgrade & rollback](/en/operations/upgrade-rollback/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).

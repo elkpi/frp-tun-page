@@ -1,0 +1,74 @@
+---
+title: frp-tun v0.5.10
+description: Go 性能优化第二阶段第一轮：FD 发送缓冲复用、出站读取直入池化缓冲，以及真实 QUIC 受控基准与 CPU profile 归因。
+slug: releases/v0.5.10
+version: v0.5.10
+status: release
+published: true
+---
+
+> **正式发布版本**
+>
+> **发布日期**：2026 年 11 月 15 日
+>
+> **发布文件**：多架构 UPX 二进制与校验和文件
+>
+> **使用许可**：遵循 [最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+## 摘要
+
+- 发送链缓冲复用：FD 发送缓冲跨包复用，发送链每包减少 1 次堆分配；quic-go `SendDatagram` 的恒拷贝契约已用注释钉住，防止误改回归。
+- 出站读取直入池化缓冲：出站数据读取直接写入池化缓冲，每包减少 1 次复制；alloc 后失败路径就地归还缓冲。
+- 真实 QUIC 受控基准：以 `transport=quic` 真实链路构建受控基准，基准矩阵扩展至 30 组合，并附 CPU profile 归因。
+- 性能口径：main/head 同版基准对照（5 样本中位数）下，datagram 链每包堆分配降低 24.9%~28.5%（稳定）；CPU 方向无一致改善或劣化，部分组合 MAD 超 10%，如实标注 unstable。pprof 实测 syscall 占 44.3%（全进程口径），批量收发方向成立，但需在含用户态 WireGuard 链路补测定位。
+- [v0.5.9](/releases/v0.5.9/) 的第一阶段能力（受控基准、Endpoint 零分配、Datagram 完整帧接口、事件驱动泵管理）与动态 MTU 真机验证结论均继续有效。
+
+## 下载与二进制资产
+
+| 架构 | 文件 | 下载 |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.10_amd64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_amd64) |
+| Linux arm | `frp-tun_v0.5.10_arm` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_arm) |
+| Linux arm64 | `frp-tun_v0.5.10_arm64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_arm64) |
+| Linux mips | `frp-tun_v0.5.10_mips-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.10_mipsle-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/frp-tun_v0.5.10_mipsle-softfloat) |
+| 校验清单 | `checksums.txt` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.10/checksums.txt) |
+
+## 验证
+
+下载全部文件后，可在同一目录执行 `sha256sum -c checksums.txt`。只下载单个架构时，请将该文件的 SHA-256 与以下对应摘要比较。
+
+```text
+36b1b412e88dc18f8102e515aba413b6f8765cb7482c7ed6ff472cc6cc6e5f79  frp-tun_v0.5.10_amd64
+0a7dd1b2a3137d013105c5f1769401f22574e058cd9294d1d4294dedee6cc28b  frp-tun_v0.5.10_arm
+e5131e95261e03e94bbcdee4494dca3a4beb4e3da3b615c5d78d407b28cadd66  frp-tun_v0.5.10_arm64
+9eca0b12ae4931045984465e56be7f64da08311f3776c30aeccbe4ceb7a7e4ad  frp-tun_v0.5.10_mipsle-softfloat
+b36e0e9be5278715e54f49563b7a3463645f3eff159f4f84d633668ccb80b9d1  frp-tun_v0.5.10_mips-softfloat
+```
+
+## 已验证范围
+
+- 五种架构的发行二进制均已与 `checksums.txt` 比对通过。
+- 基准为 main/head 同版对照、5 样本中位数：datagram 链每包堆分配降低 24.9%~28.5%（稳定）；CPU 方向无一致改善或劣化，部分组合 MAD 超 10%，标注 unstable。
+- pprof 实测 syscall 占 44.3%（全进程口径）；批量收发方向成立，需在含用户态 WireGuard 链路补测定位。
+- 64MB/16MB 内存设备仍为压力评估档，非支持声明。
+- 动态 MTU 的 `suggest` 与 `auto` 模式真机验证结论延续 [v0.5.8](/releases/v0.5.8/)，本版未改动相关行为。
+
+## 已知限制
+
+- 硬件、网络路径和负载不同，基准结果与实际收益可能不同；请在目标环境验证。
+- 64MB/16MB 内存设备仍为压力评估档，非支持声明。
+- 交叉编译资产不构成特定硬件、持续高负载、非零 `SO_MARK` 或复杂 NAT 场景的兼容性保证。
+- 软件不提供自动更新或可用性 SLA；请参阅 [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+
+## 升级
+
+在维护窗口备份现有配置和旧版二进制，确认独立的回退路径。下载匹配架构的二进制并核对摘要后，停止服务、替换二进制并重启，然后运行 `frp-tun doctor` 检查状态。已有启用 journal 时，重启恢复已提交配置；需要更改配置时使用 `frp-tun apply`。详见[升级与回退](/operations/upgrade-rollback/)。
+
+## 回退
+
+停止服务，恢复备份的旧版二进制，再启动并检查状态。配置回退和二进制回退并非同一操作；操作前请核对目标旧版的发行说明及其 journal 行为。
+
+## 撤回
+
+如发现重大安全或稳定性问题，维护者将在公开 Release 页面标记撤回，并按 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布通告。
