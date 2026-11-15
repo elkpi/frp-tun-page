@@ -153,14 +153,14 @@ test('v0.5.12 release notes keep batch receive as the default and refuse a perfo
   assert.match(english, /diagnostic only/);
 });
 
-test('current release links point to v0.5.11 in both locales', () => {
+test('current release links point to v0.5.12 in both locales', () => {
   const pages = [
-    ['index.mdx', '/releases/v0.5.11/'],
-    ['en/index.mdx', '/en/releases/v0.5.11/'],
-    ['releases/index.mdx', '/releases/v0.5.11/'],
-    ['en/releases/index.mdx', '/en/releases/v0.5.11/'],
-    ['configuration/openwrt.mdx', '/releases/v0.5.11/'],
-    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.11/'],
+    ['index.mdx', '/releases/v0.5.12/'],
+    ['en/index.mdx', '/en/releases/v0.5.12/'],
+    ['releases/index.mdx', '/releases/v0.5.12/'],
+    ['en/releases/index.mdx', '/en/releases/v0.5.12/'],
+    ['configuration/openwrt.mdx', '/releases/v0.5.12/'],
+    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.12/'],
   ];
 
   for (const [page, currentReleasePath] of pages) {
@@ -168,21 +168,21 @@ test('current release links point to v0.5.11 in both locales', () => {
     assert.match(content, new RegExp(currentReleasePath.replaceAll('/', '\\/')),
       `${page} must link to ${currentReleasePath}`);
     if (!page.endsWith('releases/index.mdx')) {
-      assert.doesNotMatch(content, /v0\.5\.10/,
-        `${page} must not retain a v0.5.10 current-version pointer`);
+      assert.doesNotMatch(content, /v0\.5\.11/,
+        `${page} must not retain a v0.5.11 current-version pointer`);
     }
     if (page.endsWith('configuration/openwrt.mdx')) {
-      assert.match(content, /frp-tun_v0\.5\.11_/,
-        `${page} must use v0.5.11 binary names`);
+      assert.match(content, /frp-tun_v0\.5\.12_/,
+        `${page} must use v0.5.12 binary names`);
     }
   }
 
   const chineseIndex = readFileSync(path.join(root, 'src/content/docs/releases/index.mdx'), 'utf8');
   const englishIndex = readFileSync(path.join(root, 'src/content/docs/en/releases/index.mdx'), 'utf8');
-  assert.match(chineseIndex, /v0\.5\.11 \(当前稳定版本\)/);
-  assert.match(englishIndex, /v0\.5\.11 \(Current Stable Release\)/);
-  assert.doesNotMatch(chineseIndex, /v0\.5\.10 \(当前稳定版本\)/);
-  assert.doesNotMatch(englishIndex, /v0\.5\.10 \(Current Stable Release\)/);
+  assert.match(chineseIndex, /v0\.5\.12 \(当前稳定版本\)/);
+  assert.match(englishIndex, /v0\.5\.12 \(Current Stable Release\)/);
+  assert.doesNotMatch(chineseIndex, /v0\.5\.11 \(当前稳定版本\)/);
+  assert.doesNotMatch(englishIndex, /v0\.5\.11 \(Current Stable Release\)/);
 });
 
 test('sidebar configuration translates all custom Chinese labels for English', () => {
