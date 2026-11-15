@@ -1,0 +1,79 @@
+---
+title: frp-tun v0.5.11
+description: 'Go batched I/O improvements: LoopbackBind and Endpoint batching, lazy reassembler expiry, and performance boundaries established by a fair comparison.'
+slug: en/releases/v0.5.11
+version: v0.5.11
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 15, 2026
+>
+> **Assets**: UPX-compressed binaries for five architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- **LoopbackBind batched I/O**: Uses IPv4 `ReadBatch`/`WriteBatch` with a batch limit of 16 packets; permanently falls back to single-packet I/O when batch APIs are unsupported. Batches larger than 16 are split and fully sent. Each call uses its own message array to isolate concurrent I/O across peers.
+- **Endpoint inbound batching**: Non-blockingly drains up to 16 frames and flushes immediately, with no fixed waiting period. Control frames cause any accumulated data frames to be flushed first.
+- **Lazy reassembler expiry**: The fragment reassembler's `expire` cleanup does not traverse fragment state before expiry; cleanup runs once an item is due.
+- **Cancellation and deadlines**: `WriteBatch` checks context cancellation; `TryReadFrame` honors an expired read deadline.
+- **Fair benchmark**: Same benchmark fixture and batched MemoryTUN, with only the Bind implementation under test differing; all five samples per payload at 1000 pps completed with zero loss. A positive Δ% means improvement (after relative to before). CPU: 64B +2.7% and 512B -2.0% were within noise; the 1400B payload reduced CPU by 22.9%, the only case exceeding the 10% threshold. Under a typical 1k pps gateway load, only the large-packet case has demonstrated CPU savings.
+- **Heap result and correction**: Heap use increased by 3.1 objects per packet (about 57% worse), due to `x/net` `ReadBatch` constructing a `UDPAddr` per packet; this repository's own message arrays, buffers, and addresses are fully reused with zero allocations. The initial report's heap savings of -9.2% to -10.1% are invalidated due to fixture differences and must not be cited.
+- Previously validated capabilities and conclusions from [v0.5.10](/en/releases/v0.5.10/) and earlier remain in effect.
+
+## Downloads
+
+The links below point to the official v0.5.11 GitHub Release on this site. All five architecture binaries passed `sha256sum -c` against that release's `checksums.txt`.
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.11_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_amd64) |
+| Linux arm | `frp-tun_v0.5.11_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_arm) |
+| Linux arm64 | `frp-tun_v0.5.11_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_arm64) |
+| Linux mips | `frp-tun_v0.5.11_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.11_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/checksums.txt) |
+
+## Verification
+
+Download the required assets into one directory and run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its digest with the corresponding value below.
+
+```text
+36c1fe6bbafd2dd2a9647914c72d3cb4500fd8245e554d910bf19cb159ae1124  frp-tun_v0.5.11_amd64
+f9d918cb51f2f49d9110ce2a3dc3c2e5ee5fd0568ddd9cb30c8db57816ae0fe1  frp-tun_v0.5.11_arm
+1fdfd2b9905f2076b66a33970a8164dd32168a47dfd40f4a659ea762a531237c  frp-tun_v0.5.11_arm64
+36723965285f456500f365088568d4d7408ef77c3aaf84afd1b618a887477669  frp-tun_v0.5.11_mips-softfloat
+26051ad8ef2b9ce58ac373f39f3f599b06cd71173aa3ca17122d4b738629472a  frp-tun_v0.5.11_mipsle-softfloat
+```
+
+## Validated scope
+
+- All five official architecture binaries were checked against the accompanying `checksums.txt`.
+- The fair benchmark used the same fixture and batched MemoryTUN, with only the Bind implementation under test differing; all five samples per payload at 1000 pps completed with zero loss.
+- CPU change: 64B +2.7% and 512B -2.0% were within noise; the 1400B payload reduced CPU by 22.9%, exceeding the 10% threshold. Therefore, demonstrated CPU savings under a typical 1k pps gateway load apply only to the large-packet case.
+- Heap use increased by 3.1 objects per packet (about 57% worse), an allocation inside `x/net` `ReadBatch` for each `UDPAddr`; this repository already reuses its own objects without allocations. The initial -9.2% to -10.1% heap-savings result is invalidated due to fixture differences.
+- Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+
+## Known limitations
+
+- Benchmark results and actual savings depend on hardware, network path, and load; the CPU evidence does not justify generalizing the large-packet result to every workload.
+- `x/net` `ReadBatch` introduces one `UDPAddr` allocation per packet, increasing heap object counts; initial heap-savings figures are invalidated.
+- Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. See [Upgrade & rollback](/en/operations/upgrade-rollback/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).

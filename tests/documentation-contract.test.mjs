@@ -89,11 +89,66 @@ test('all documentation pages have an English counterpart', () => {
     'en/releases/v0.5.8.mdx',
     'en/releases/v0.5.9.mdx',
     'en/releases/v0.5.10.mdx',
+    'en/releases/v0.5.11.mdx',
   ];
 
   for (const page of expectedEnglishPages) {
     assert.equal(existsSync(path.join(root, 'src/content/docs', page)), true, `${page} must exist`);
   }
+});
+
+test('v0.5.11 release notes expose the official release metadata and benchmark caveats', () => {
+  const chinesePath = path.join(root, 'src/content/docs/releases/v0.5.11.mdx');
+  const englishPath = path.join(root, 'src/content/docs/en/releases/v0.5.11.mdx');
+  assert.equal(existsSync(chinesePath), true, 'Chinese v0.5.11 release notes must exist');
+  assert.equal(existsSync(englishPath), true, 'English v0.5.11 release notes must exist');
+
+  const chinese = readFileSync(chinesePath, 'utf8');
+  const english = readFileSync(englishPath, 'utf8');
+  for (const content of [chinese, english]) {
+    assert.match(content, /^version: v0\.5\.11$/m);
+    assert.match(content, /^status: release$/m);
+    assert.match(content, /^published: true$/m);
+    assert.match(content, /1400B[^\n]*22\.9%/);
+    assert.match(content, /3\.1[^\n]*57%/);
+    assert.match(content, /-9\.2%[^\n]*-10\.1%[^\n]*(?:作废|invalidated|withdrawn|void)/i);
+  }
+  assert.match(chinese, /2026 年 11 月 15 日/);
+  assert.match(english, /November 15, 2026/);
+  assert.match(chinese, /^slug: releases\/v0\.5\.11$/m);
+  assert.match(english, /^slug: en\/releases\/v0\.5\.11$/m);
+});
+
+test('current release links point to v0.5.11 in both locales', () => {
+  const pages = [
+    ['index.mdx', '/releases/v0.5.11/'],
+    ['en/index.mdx', '/en/releases/v0.5.11/'],
+    ['releases/index.mdx', '/releases/v0.5.11/'],
+    ['en/releases/index.mdx', '/en/releases/v0.5.11/'],
+    ['configuration/openwrt.mdx', '/releases/v0.5.11/'],
+    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.11/'],
+  ];
+
+  for (const [page, currentReleasePath] of pages) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    assert.match(content, new RegExp(currentReleasePath.replaceAll('/', '\\/')),
+      `${page} must link to ${currentReleasePath}`);
+    if (!page.endsWith('releases/index.mdx')) {
+      assert.doesNotMatch(content, /v0\.5\.10/,
+        `${page} must not retain a v0.5.10 current-version pointer`);
+    }
+    if (page.endsWith('configuration/openwrt.mdx')) {
+      assert.match(content, /frp-tun_v0\.5\.11_/,
+        `${page} must use v0.5.11 binary names`);
+    }
+  }
+
+  const chineseIndex = readFileSync(path.join(root, 'src/content/docs/releases/index.mdx'), 'utf8');
+  const englishIndex = readFileSync(path.join(root, 'src/content/docs/en/releases/index.mdx'), 'utf8');
+  assert.match(chineseIndex, /v0\.5\.11 \(当前稳定版本\)/);
+  assert.match(englishIndex, /v0\.5\.11 \(Current Stable Release\)/);
+  assert.doesNotMatch(chineseIndex, /v0\.5\.10 \(当前稳定版本\)/);
+  assert.doesNotMatch(englishIndex, /v0\.5\.10 \(Current Stable Release\)/);
 });
 
 test('sidebar configuration translates all custom Chinese labels for English', () => {

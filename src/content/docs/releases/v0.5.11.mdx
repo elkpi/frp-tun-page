@@ -1,0 +1,79 @@
+---
+title: frp-tun v0.5.11
+description: 'Go 批量收发优化：LoopbackBind 与 Endpoint 批量 IO、reassembler 惰性过期，以及经公平对照确认的性能边界。'
+slug: releases/v0.5.11
+version: v0.5.11
+status: release
+published: true
+---
+
+> **正式发布版本**
+>
+> **发布日期**：2026 年 11 月 15 日
+>
+> **发布文件**：五种架构的 UPX 二进制与校验和文件
+>
+> **使用许可**：遵循[最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+## 摘要
+
+- **LoopbackBind 批量收发**：使用 IPv4 `ReadBatch`/`WriteBatch`，批量上限为 16 包；系统不支持批量 API 时永久回退到单包 IO。超过上限的批次分块完整发送；每次调用使用独立消息数组，隔离多个 peer 的并发收发。
+- **Endpoint 入站攒批**：非阻塞排空最多 16 帧后立即 flush，不增加固定等待；遇到控制帧时，优先 flush 已攒的数据帧。
+- **reassembler 惰性过期**：分片重组器的 `expire` 清理在未到期时不遍历分片状态；到期后再执行清理。
+- **取消与 deadline 对齐**：`WriteBatch` 检查 context 取消；`TryReadFrame` 遵守已过期的读取 deadline。
+- **公平基准结果**：同一基准夹具、同批量 MemoryTUN，仅 Bind 实现不同；1000 pps 每档 5 个样本均闭合且零丢包。Δ% 正值表示改善（after 相对 before）。CPU：64B +2.7%、512B -2.0% 均在噪声范围；1400B 档 CPU 降低 22.9%，是唯一超过 10% 门槛的档位。常规 1k pps 网关负载仅大包档有实证 CPU 收益。
+- **Heap 结果与修正**：每包增加 3.1 个对象（约劣化 57%），来自 `x/net` `ReadBatch` 为每包构造 `UDPAddr`；本仓侧的消息数组、Buffers 与地址复用已做到零分配。首版报告的 heap -9.2%~-10.1% 收益因夹具差异作废，不应引用。
+- [v0.5.10](/releases/v0.5.10/) 及更早版本已验证的能力和结论继续有效。
+
+## 下载与二进制资产
+
+以下链接指向官网 v0.5.11 GitHub Release。五种架构二进制均已按同一 Release 的 `checksums.txt` 执行 `sha256sum -c` 并通过。
+
+| 架构 | 文件 | 下载 |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.11_amd64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_amd64) |
+| Linux arm | `frp-tun_v0.5.11_arm` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_arm) |
+| Linux arm64 | `frp-tun_v0.5.11_arm64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_arm64) |
+| Linux mips | `frp-tun_v0.5.11_mips-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.11_mipsle-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/frp-tun_v0.5.11_mipsle-softfloat) |
+| 校验清单 | `checksums.txt` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.11/checksums.txt) |
+
+## 验证
+
+将所需资产下载到同一目录后运行 `sha256sum -c checksums.txt`。如只下载单个架构，请将该文件的摘要与下表对应值比较。
+
+```text
+36c1fe6bbafd2dd2a9647914c72d3cb4500fd8245e554d910bf19cb159ae1124  frp-tun_v0.5.11_amd64
+f9d918cb51f2f49d9110ce2a3dc3c2e5ee5fd0568ddd9cb30c8db57816ae0fe1  frp-tun_v0.5.11_arm
+1fdfd2b9905f2076b66a33970a8164dd32168a47dfd40f4a659ea762a531237c  frp-tun_v0.5.11_arm64
+36723965285f456500f365088568d4d7408ef77c3aaf84afd1b618a887477669  frp-tun_v0.5.11_mips-softfloat
+26051ad8ef2b9ce58ac373f39f3f599b06cd71173aa3ca17122d4b738629472a  frp-tun_v0.5.11_mipsle-softfloat
+```
+
+## 已验证范围
+
+- 官方五架构发行二进制均已与随附的 `checksums.txt` 比对通过。
+- 公平基准使用相同夹具和批量 MemoryTUN，仅被测 Bind 实现不同；1000 pps 的 64B、512B、1400B 各 5 个样本全部闭合、零丢包。
+- CPU 变化：64B +2.7%、512B -2.0% 均在噪声范围；1400B 档 CPU 降低 22.9%，超过 10% 门槛。故仅能声称常规 1k pps 网关负载的大包档有实证 CPU 收益。
+- Heap 每包增加 3.1 个对象（约劣化 57%），为 `x/net` `ReadBatch` 构造 `UDPAddr` 的库内开销；本仓侧复用已为零分配。首版报告的 heap -9.2%~-10.1% 收益由于夹具差异作废。
+- 64MB/16MB 内存设备仍为压力评估档，非支持声明。
+
+## 已知限制
+
+- 基准结果和实际收益受硬件、网络路径与负载影响；CPU 证据不支持把单一大包档收益泛化到所有负载。
+- `x/net` `ReadBatch` 引入每包 `UDPAddr` 分配，导致 heap 对象数增加；首版 heap 收益数字已作废。
+- 64MB/16MB 内存设备仍为压力评估档，非支持声明。
+- 交叉编译资产不构成特定硬件、持续高负载、非零 `SO_MARK` 或复杂 NAT 场景的兼容性保证。
+- 软件不提供自动更新或可用性 SLA；请参阅 [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+
+## 升级
+
+在维护窗口备份现有配置和旧版二进制，确认独立回退路径。下载匹配架构的二进制并核对摘要后，停止服务、替换二进制并重启，然后运行 `frp-tun doctor` 检查状态。已有启用 journal 时，重启恢复已提交配置；需要更改配置时使用 `frp-tun apply`。详见[升级与回退](/operations/upgrade-rollback/)。
+
+## 回退
+
+停止服务，恢复备份的旧版二进制，再启动并检查状态。配置回退和二进制回退并非同一操作；操作前请核对目标旧版的发行说明及其 journal 行为。
+
+## 撤回
+
+如发现重大安全或稳定性问题，维护者将在公开 Release 页面标记撤回，并按 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布通告。
