@@ -1,0 +1,77 @@
+---
+title: frp-tun v0.5.12
+description: 'Fix batch sendmmsg/recvmmsg negative counts so single-packet fallback works, and reuse Endpoint batch-write buffers per call. Production still defaults to batch receive; receive-mode comparisons are diagnostic samples only.'
+slug: en/releases/v0.5.12
+version: v0.5.12
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 15, 2026
+>
+> **Assets**: UPX-compressed binaries for five architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- **Negative batch-count fallback**: Fixes the case where a negative count from batched `sendmmsg`/`recvmmsg` could not fall back to single-packet I/O. After a partially successful batch call, Bind and Endpoint no longer resend or stop early. Cancellation and illegal counts are covered.
+- **Endpoint batch-write buffers**: Batch writes reuse buffers for the duration of one call, and honor cancellation before each chunk.
+- **Production default unchanged**: Receive mode is separate from batched send capability. Production still defaults to batch receive; this release does not switch on small-packet receive mode.
+- **Diagnostic samples, not a performance result**: The receive-mode comparison is diagnostic only. All 60 samples of a 1000 pps userspace WireGuard benchmark completed, but key metrics varied by more than 10% on one side. This release therefore does not claim a stable performance gain, and it did not run a higher load on that basis.
+- **Resource targets unchanged**: The support target remains 128MB RAM / 32MB Flash. 64MB/16MB remains a stress-evaluation tier, not a supported claim.
+- Previously validated capabilities and conclusions from [v0.5.11](/en/releases/v0.5.11/) and earlier remain in effect.
+
+## Downloads
+
+The links below point to the official v0.5.12 GitHub Release on this site. All five architecture binaries passed `sha256sum -c` against that release's `checksums.txt`.
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.12_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_amd64) |
+| Linux arm | `frp-tun_v0.5.12_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_arm) |
+| Linux arm64 | `frp-tun_v0.5.12_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_arm64) |
+| Linux mips | `frp-tun_v0.5.12_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.12_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/frp-tun_v0.5.12_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.12/checksums.txt) |
+
+## Verification
+
+Download the required assets into one directory and run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its digest with the corresponding value below.
+
+```text
+3d33430214af45958255a1112ac720a4fe20eeb60de4dda03fc92463b96cf62d  frp-tun_v0.5.12_amd64
+391c987cd50cba5cee9c34fa216ae57c5fd8fe0ff9a27055f3c0d1d5bbffea98  frp-tun_v0.5.12_arm
+bbbc5fedf8baf0cace0c03973bac0404232ee38587479d4ce6bc28fe080b263e  frp-tun_v0.5.12_arm64
+b5567a01ccefd76ed4e547b0f699b98bee676b55f4c44706ec308c8be84a873a  frp-tun_v0.5.12_mips-softfloat
+cfd4eec127f1aa8ace21721bbbff5d9d6c3ba74fc3c3a98f17ecec3994aa1e2b  frp-tun_v0.5.12_mipsle-softfloat
+```
+
+## Validated scope
+
+- All five official architecture binaries were checked against the accompanying `checksums.txt`.
+- Negative batch-count fallback, send boundaries after a partial batch success, and cancellation plus illegal counts are covered by the upstream release tests.
+- All 60 samples of the 1000 pps userspace WireGuard diagnostic run completed. Key metrics varied by more than 10% on one side, so receive mode was not switched and the comparison is not a stable performance gain.
+- Resource targets are unchanged: 128MB RAM / 32MB Flash remains the support target. Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+
+## Known limitations
+
+- The receive-mode comparison is diagnostic only. Results that vary by more than 10% do not support a stable performance gain, and small-packet receive mode is not the production default.
+- This release was not validated on physical devices, kernel WireGuard, live carrier paths, or nonzero `SO_MARK`.
+- Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. See [Upgrade & rollback](/en/operations/upgrade-rollback/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).
