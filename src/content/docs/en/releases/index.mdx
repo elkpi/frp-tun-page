@@ -1,12 +1,13 @@
 ---
 title: Release Notes & Version History
 description: frp-tun official release assets, SHA256 checksums, upgrade/rollback guidance, and verification evidence.
-version: v0.5.12
+version: v0.5.13
 ---
 
 Inspect official binary download links, SHA256 checksum manifests, and validation records across `frp-tun` public releases:
 
-- [v0.5.12 (Current Stable Release)](/en/releases/v0.5.12/): Fixes batched sendmmsg/recvmmsg negative-count fallback and reuses Endpoint batch-write buffers per call. Production still defaults to batch receive; receive-mode comparisons are diagnostic samples only.
+- [v0.5.13 (Current Stable Release)](/en/releases/v0.5.13/): Userspace WireGuard and real QUIC two-ended path attribution. Receive-direction 1400B improved CPU by 9.42%, below the 10% threshold, so production still defaults to batch receive.
+- [v0.5.12](/en/releases/v0.5.12/): Fixes batched sendmmsg/recvmmsg negative-count fallback and reuses Endpoint batch-write buffers per call. Production still defaults to batch receive; receive-mode comparisons are diagnostic samples only.
 - [v0.5.11](/en/releases/v0.5.11/): Batched LoopbackBind and Endpoint I/O, lazy expiry; fair benchmarks show demonstrated CPU savings only for 1400B packets, with increased heap objects per packet.
 - [v0.5.10](/en/releases/v0.5.10/): Go performance optimization phase two, round one — send-buffer reuse and outbound reads into pooled buffers, plus real-QUIC benchmarks with CPU profile attribution.
 - [v0.5.9](/en/releases/v0.5.9/): Go performance optimization phase one — frame IO fast paths with zero-allocation loopback transfer, event-driven active-pump management, and a controlled-load benchmark.
