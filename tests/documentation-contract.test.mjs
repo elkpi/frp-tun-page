@@ -91,6 +91,7 @@ test('all documentation pages have an English counterpart', () => {
     'en/releases/v0.5.10.mdx',
     'en/releases/v0.5.11.mdx',
     'en/releases/v0.5.12.mdx',
+    'en/releases/v0.5.13.mdx',
   ];
 
   for (const page of expectedEnglishPages) {
@@ -151,6 +152,37 @@ test('v0.5.12 release notes keep batch receive as the default and refuse a perfo
   assert.match(english, /does not switch on small-packet receive mode/);
   assert.match(english, /does not claim a stable performance gain/);
   assert.match(english, /diagnostic only/);
+});
+
+test('v0.5.13 release notes keep batch receive and treat 9.42% as below the threshold', () => {
+  const chinesePath = path.join(root, 'src/content/docs/releases/v0.5.13.mdx');
+  const englishPath = path.join(root, 'src/content/docs/en/releases/v0.5.13.mdx');
+  assert.equal(existsSync(chinesePath), true, 'Chinese v0.5.13 release notes must exist');
+  assert.equal(existsSync(englishPath), true, 'English v0.5.13 release notes must exist');
+
+  const chinese = readFileSync(chinesePath, 'utf8');
+  const english = readFileSync(englishPath, 'utf8');
+  for (const content of [chinese, english]) {
+    assert.match(content, /^version: v0\.5\.13$/m);
+    assert.match(content, /^status: release$/m);
+    assert.match(content, /^published: true$/m);
+    assert.match(content, /9\.42%/);
+    assert.match(content, /10%/);
+    assert.match(content, /35166ebd6d111358b57b6dc6aaf4dafa0f97d587b98130fbd0f55d41783fd748/);
+    assert.match(content, /128MB RAM \/ 32MB Flash/);
+    assert.match(content, /64MB\/16MB/);
+    assert.match(content, /rx\/1400B/);
+  }
+  assert.match(chinese, /2026 年 11 月 16 日/);
+  assert.match(english, /November 16, 2026/);
+  assert.match(chinese, /^slug: releases\/v0\.5\.13$/m);
+  assert.match(english, /^slug: en\/releases\/v0\.5\.13$/m);
+  assert.match(chinese, /生产默认仍是批量接收/);
+  assert.match(chinese, /没有切换到小包接收模式/);
+  assert.match(chinese, /不宣称稳定性能收益/);
+  assert.match(english, /still defaults to batch receive/);
+  assert.match(english, /does not switch on small-packet receive mode/);
+  assert.match(english, /does not claim a stable performance gain/);
 });
 
 test('current release links point to v0.5.12 in both locales', () => {

@@ -1,0 +1,81 @@
+---
+title: frp-tun v0.5.13
+description: '用户态 WireGuard 与真实 QUIC 双端链路的本地归因基建。1000 pps 下唯一护栏通过的接收方向 1400B 档 CPU 改善 9.42%，未达 10% 门槛；生产默认仍为批量接收。'
+slug: releases/v0.5.13
+version: v0.5.13
+status: release
+published: true
+---
+
+> **正式发布版本**
+>
+> **发布日期**：2026 年 11 月 16 日
+>
+> **发布文件**：五种架构的 UPX 二进制与校验和文件
+>
+> **使用许可**：遵循[最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+## 摘要
+
+- **完整链路归因**：新增双端本地基准。路径为 MemoryTUN 明文、用户态 WireGuard 加密、LoopbackBind 与 Bridge、独立 socket 上的真实 QUIC Datagram，再到对端解密交付。唯一序号账本校验明文长度，并逐字节核对 IP 头、身份区和正文。截断或损坏不再被记成成功交付。样本带阶段标记，发布前复核输入摘要。
+- **诊断计数**：诊断套接字统计真实 `WriteMsgUDP` 调用次数和 `UDP_SEGMENT` 分段数。真实两段发送的校准测试证明计数准确，用来区分 GSO 能力与实际聚批。诊断样本必须携带这两项实际计数，并校验二者关系。
+- **采样调度**：完整 workload 矩阵强制执行。measure、profile 与 diagnostic 三阶段隔离，逐样本独立进程。身份、哈希和计数校验通过后才发布结果；失败即取消剩余样本。GSO 开关成对采样。
+- **测试修复**：supervisor 的假时钟竞态测试按剩余期限断言 IPv4 预算，不再依赖等待者总数。
+- **未达优化门槛**：1000 pps 完整链路的 60 个正式样本全部闭合。唯一“稳定且护栏通过”的档位是接收方向 1400B（rx/1400B），CPU 改善 9.42%，未达 10% 门槛。GSO 开关对照里，稳定组 CPU 差异为 0%～8%，也未达生产优化门槛（CPU 至少改善 10%，或分配至少减少 20%）。本机回环没有观测到实际多分段发送。因此生产默认仍是批量接收，没有切换到小包接收模式，也不宣称稳定性能收益。生产数据路径保持不变。
+- **资源目标不变**：支持目标仍为 128MB RAM / 32MB Flash。64MB/16MB 仍是压力评估档，不是支持声明。
+- [v0.5.12](/releases/v0.5.12/) 及更早版本已验证的能力和结论继续有效。
+
+## 下载与二进制资产
+
+以下链接指向官网 v0.5.13 GitHub Release。五种架构二进制均已按同一 Release 的 `checksums.txt` 执行 `sha256sum -c` 并通过。
+
+| 架构 | 文件 | 下载 |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.13_amd64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_amd64) |
+| Linux arm | `frp-tun_v0.5.13_arm` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_arm) |
+| Linux arm64 | `frp-tun_v0.5.13_arm64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_arm64) |
+| Linux mips | `frp-tun_v0.5.13_mips-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.13_mipsle-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_mipsle-softfloat) |
+| 校验清单 | `checksums.txt` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/checksums.txt) |
+
+## 验证
+
+将所需资产下载到同一目录后运行 `sha256sum -c checksums.txt`。如只下载单个架构，请将该文件的摘要与下表对应值比较。
+
+```text
+35166ebd6d111358b57b6dc6aaf4dafa0f97d587b98130fbd0f55d41783fd748  frp-tun_v0.5.13_amd64
+381b0f0d8e51b42fe4557c06e2ada43ea1466cd574fbc6ec2b90e57f70c39e1b  frp-tun_v0.5.13_arm
+0aaea888ade2b05e330f5e84702f8f05189ac6412b317448356d822d387ad5dc  frp-tun_v0.5.13_arm64
+840ffca9b6e29df4a564b4de23d27a4c1fcbf1ce82442528010af8dbe3635d81  frp-tun_v0.5.13_mips-softfloat
+69856d49e5a29f33ac976e1b6767884126d73e34ae30f59868ee8e3881011944  frp-tun_v0.5.13_mipsle-softfloat
+```
+
+## 已验证范围
+
+- 官方五架构发行二进制均已与随附的 `checksums.txt` 比对通过。
+- 1000 pps 完整链路的 60 个正式样本全部闭合。明文截断或损坏会被拒绝，不再记成成功交付。
+- 接收方向 1400B 是唯一稳定且护栏通过的档位，CPU 改善 9.42%，未达 10% 门槛。GSO 开关对照的稳定组 CPU 差异为 0%～8%，未达生产优化门槛。本机回环未观测到实际多分段发送。
+- 测量来自本机 Linux 5.15 aarch64、`GOMAXPROCS=2`、MemoryTUN。它不是 OpenWrt 或 x86 设备实测。五架构交叉构建只证明能够编译。
+- 资源目标未改变：128MB RAM / 32MB Flash 仍是支持目标；64MB/16MB 仍为压力评估档，非支持声明。
+
+## 已知限制
+
+- 9.42% 的 CPU 变化未达 10% 门槛，不能写成稳定性能收益。小包接收模式没有成为生产默认，生产数据路径保持不变。
+- GSO 对照的 0%～8% CPU 差异同样未达门槛。本机回环没有实际多分段发送，不能据此声称 GSO 已带来收益。
+- profile 显示系统调用仍占主导（flat 53%～58%）。Endpoint 读取累计约 2%～4%，LoopbackBind 发送累计约 3%～14%。累计栈有重叠，这两项不能相加。
+- 结果不代表 OpenWrt、x86 或物理运营商链路。非零 `SO_MARK` 与复杂 NAT 仍未在本版测量中验证。
+- 64MB/16MB 内存设备仍为压力评估档，非支持声明。
+- 交叉编译资产不构成特定硬件、持续高负载、非零 `SO_MARK` 或复杂 NAT 场景的兼容性保证。
+- 软件不提供自动更新或可用性 SLA；请参阅 [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+
+## 升级
+
+在维护窗口备份现有配置和旧版二进制，确认独立回退路径。下载匹配架构的二进制并核对摘要后，停止服务、替换二进制并重启，然后运行 `frp-tun doctor` 检查状态。已有启用 journal 时，重启恢复已提交配置；需要更改配置时使用 `frp-tun apply`。详见[升级与回退](/operations/upgrade-rollback/)。
+
+## 回退
+
+停止服务，恢复备份的旧版二进制，再启动并检查状态。配置回退和二进制回退并非同一操作；操作前请核对目标旧版的发行说明及其 journal 行为。
+
+## 撤回
+
+如发现重大安全或稳定性问题，维护者将在公开 Release 页面标记撤回，并按 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布通告。

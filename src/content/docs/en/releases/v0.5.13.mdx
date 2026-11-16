@@ -1,0 +1,81 @@
+---
+title: frp-tun v0.5.13
+description: 'Local attribution infrastructure for a userspace WireGuard and real QUIC two-ended path. At 1000 pps the only guardrail-passing case, receive 1400B, improved CPU by 9.42%, below the 10% threshold. Production still defaults to batch receive.'
+slug: en/releases/v0.5.13
+version: v0.5.13
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 16, 2026
+>
+> **Assets**: UPX-compressed binaries for five architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- **Full-path attribution**: Adds a local two-ended benchmark. The path is MemoryTUN plaintext, userspace WireGuard encryption, LoopbackBind and Bridge, a real QUIC datagram on an independent socket, then decrypt-and-deliver on the peer. The unique-sequence ledger checks plaintext length and compares the IP header, identity region, and payload byte for byte. Truncation or corruption is no longer counted as a successful delivery. Samples carry stage markers, and input digests are checked before publication.
+- **Diagnostic counts**: The diagnostic socket records real `WriteMsgUDP` calls and `UDP_SEGMENT` segment counts. A calibration test with two real sends shows the counters are accurate, separating GSO capability from actual batching. Diagnostic samples must carry both actual counts, and the relationship between them is checked.
+- **Sample scheduling**: The full workload matrix is mandatory. The measure, profile, and diagnostic phases are isolated, and each sample runs in its own process. A result is published only after identity, hash, and count checks pass; a failure cancels the remaining samples. GSO on and off are sampled as a pair.
+- **Test fix**: The supervisor fake-clock race test asserts the IPv4 budget from the remaining deadline, not from the number of waiters.
+- **Below the optimization threshold**: All 60 official samples of the 1000 pps full path completed. The only stable, guardrail-passing case is receive-direction 1400B (rx/1400B), with a CPU improvement of 9.42%, below the 10% threshold. In the GSO on/off comparison, the stable group's CPU difference was 0% to 8%, also below the production threshold (at least 10% CPU or at least 20% allocations). This machine's loopback showed no actual multi-segment sends. Production therefore still defaults to batch receive, this release does not switch on small-packet receive mode, and it does not claim a stable performance gain. The production data path is unchanged.
+- **Resource targets unchanged**: The support target remains 128MB RAM / 32MB Flash. 64MB/16MB remains a stress-evaluation tier, not a supported claim.
+- Previously validated capabilities and conclusions from [v0.5.12](/en/releases/v0.5.12/) and earlier remain in effect.
+
+## Downloads
+
+The links below point to the official v0.5.13 GitHub Release on this site. All five architecture binaries passed `sha256sum -c` against that release's `checksums.txt`.
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.13_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_amd64) |
+| Linux arm | `frp-tun_v0.5.13_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_arm) |
+| Linux arm64 | `frp-tun_v0.5.13_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_arm64) |
+| Linux mips | `frp-tun_v0.5.13_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.13_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/frp-tun_v0.5.13_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.13/checksums.txt) |
+
+## Verification
+
+Download the required assets into one directory and run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its digest with the corresponding value below.
+
+```text
+35166ebd6d111358b57b6dc6aaf4dafa0f97d587b98130fbd0f55d41783fd748  frp-tun_v0.5.13_amd64
+381b0f0d8e51b42fe4557c06e2ada43ea1466cd574fbc6ec2b90e57f70c39e1b  frp-tun_v0.5.13_arm
+0aaea888ade2b05e330f5e84702f8f05189ac6412b317448356d822d387ad5dc  frp-tun_v0.5.13_arm64
+840ffca9b6e29df4a564b4de23d27a4c1fcbf1ce82442528010af8dbe3635d81  frp-tun_v0.5.13_mips-softfloat
+69856d49e5a29f33ac976e1b6767884126d73e34ae30f59868ee8e3881011944  frp-tun_v0.5.13_mipsle-softfloat
+```
+
+## Validated scope
+
+- All five official architecture binaries were checked against the accompanying `checksums.txt`.
+- All 60 official samples of the 1000 pps full path completed. Truncated or corrupted plaintext is rejected and is not counted as a successful delivery.
+- Receive-direction 1400B is the only stable, guardrail-passing case. Its CPU improvement is 9.42%, below the 10% threshold. The stable group in the GSO on/off comparison differed by 0% to 8% CPU, below the production threshold. This machine's loopback showed no actual multi-segment sends.
+- Measurements are from this machine: Linux 5.15 aarch64, `GOMAXPROCS=2`, and MemoryTUN. They are not OpenWrt or x86 device results. The five-architecture cross build only shows that the binaries compile.
+- Resource targets are unchanged: 128MB RAM / 32MB Flash remains the support target. Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+
+## Known limitations
+
+- A 9.42% CPU change is below the 10% threshold and is not a stable performance gain. Small-packet receive mode is not the production default, and the production data path is unchanged.
+- The GSO comparison's 0% to 8% CPU difference is also below the threshold. This loopback did not perform actual multi-segment sends, so it does not show a GSO benefit.
+- Profiles still show system calls dominating (flat 53% to 58%). Endpoint reads account for about 2% to 4% cumulative, and LoopbackBind sends for about 3% to 14% cumulative. The cumulative stacks overlap, so those two figures must not be added.
+- The results do not represent OpenWrt, x86, or a live carrier path. Nonzero `SO_MARK` and complex NAT were not measured in this release.
+- Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. See [Upgrade & rollback](/en/operations/upgrade-rollback/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).
