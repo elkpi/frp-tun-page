@@ -4,7 +4,7 @@ description: Complete frp-tun parameter dictionary, default values, and producti
 version: preview
 ---
 
-> **Applicable version: technical preview (v0.5.6).** Production security best practice: restrict configuration file permissions to `0600` (`chmod 600 config.toml`) to prevent unauthorized local users from reading cryptographic credentials.
+> **Applicable version: technical preview (field dictionary aligned with v0.5.13).** Production security best practice: restrict configuration file permissions to `0600` (`chmod 600 config.toml`) to prevent unauthorized local users from reading cryptographic credentials.
 
 `frp-tun` utilizes standard TOML syntax. The full parameter dictionary and sanitized production template are documented below:
 
@@ -120,6 +120,7 @@ port_mapping = true                   # Automatic gateway port-mapping discovery
 quic_keepalive_period = "10s"         # P2P QUIC keep-alive period (default 10s, valid range [0s,10m]; explicit "0s" disables it; legacy key keepalive_period is still accepted)
 accept_grace_after_failed_punch = "6s" # Grace period to accept late peer dial-ins after a fully missed punch (default 6s, valid range (0s,60s]; legacy key accept_grace is still accepted)
 family_standby = false                # Enable dual-stack warm standby channel
+mtu_adjust = "suggest"                # Tunnel MTU policy (since v0.5.7): "suggest" (default, record only), "auto" (controlled apply after a stable deviation), "off" (do not observe). See the notes below
 
 # Optional: Multi-Path QoS Probing
 [p2p.qos]
@@ -151,8 +152,9 @@ bytes_per_second = 8388608            # Per-session rate limit in bytes/second (
 to = "console"                        # Log output destination: "console" or file path
 level = "info"                        # Log level: "trace", "debug", "info", "warn", "error"
 max_days = 3                          # Log file retention days
-max_size = "10MB"                     # Log file rotation size threshold
+max_size = "10MB"                     # Rotation size (default 10MB; 0 disables size-based rotation)
 max_backups = 3                       # Number of rotated log archives to retain
+disable_print_color = false          # Disable console color (default false; applies only when to is console; file logs are never colored)
 ```
 
 ## Field Notes
@@ -162,6 +164,12 @@ max_backups = 3                       # Number of rotated log archives to retain
 - **Multi-peer topologies**: use `[peer]` for a single peer; for three or more sites in a Hub-Spoke mesh, declare successive peers with the `[[peers]]` array. Public UDP listen ports default to `p2p.listen_port + index`, or can be set explicitly per peer via `peer.listen_port` (must be unique across peers).
 - **P2P pre-shared secret fallback**: the P2P handshake secret is resolved in the order `peer.shared_secret` → `peer.shared_secret_file` → `frp.shared_secret` → `frp.shared_secret_file`, so multi-peer deployments may assign a dedicated secret per peer.
 - **Legacy key aliases**: `p2p.keepalive_period` and `p2p.accept_grace` are legacy aliases of `p2p.quic_keepalive_period` and `p2p.accept_grace_after_failed_punch`, honored only when the new keys are unset.
+- **Tunnel MTU adjustment**: `p2p.mtu_adjust` has been available since v0.5.7 and defaults to `suggest`. The sender still probes the single-datagram payload limit on its own. This field only decides what happens when that confirmed limit stays away from the current tunnel `mtu`: record a suggestion, apply a new MTU, or ignore it. The value must stay unchanged for 10 minutes with no session or path change. The suggestion is the largest tunnel MTU that still fits in one frame: the inner packet is padded to 16 bytes, then a 32-byte WireGuard transport header and a 4-byte frame header are added. A confirmed limit of 1404 suggests 1360, not 1380. Values below 1280 are not suggested, and this release does not raise MTU.
+  - `suggest`: writes one log line and exposes `suggested_mtu` in `status` and `perf`. The same value is reported only once. It does not change the running configuration.
+  - `auto`: uses the same controlled commit as a manual `frp-tun apply` (journal, rollback on failure, and rebuild). Automatic changes are at least 30 minutes apart, and that cooldown survives a session change. It changes the running configuration and the journal. When an enabled journal already exists, restart restores that commit, not the old `mtu` still written in the file.
+  - `off`: no observation and no action.
+  - A session or path change clears an unfinished 10-minute window and the `suggest` duplicate filter. The new path must be observed for a fresh 10 minutes.
+- **Console color**: `log.disable_print_color` defaults to `false`. Set it to `true` to turn off console color. It matters only when the log destination is `console`; logs written to a file are not colored.
 
 ## Built-in STUN Targets & Outbound Disclosure
 

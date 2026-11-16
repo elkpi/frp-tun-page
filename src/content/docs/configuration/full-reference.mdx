@@ -4,7 +4,7 @@ description: frp-tun 完整配置参数字典、默认值与生产脱敏模板�
 version: preview
 ---
 
-> **适用版本：技术预览 (v0.5.6)。** 生产环境安全建议：配置文件权限请设为 `0600` (`chmod 600 config.toml`)，避免敏感凭据被本机非特权用户读取。
+> **适用版本：技术预览（字段字典对齐 v0.5.13）。** 生产环境安全建议：配置文件权限请设为 `0600` (`chmod 600 config.toml`)，避免敏感凭据被本机非特权用户读取。
 
 `frp-tun` 采用标准 TOML 格式进行配置。以下为全量字段字典说明与生产级脱敏模板：
 
@@ -118,6 +118,7 @@ port_mapping = true                   # 网关端口映射 (UPnP/PCP) 自动发�
 quic_keepalive_period = "10s"         # P2P QUIC 心跳保活周期 (默认 10s，范围 [0s,10m]；显式 "0s" 停用；旧键 keepalive_period 仍被接受)
 accept_grace_after_failed_punch = "6s" # 打洞完全未命中后仍接收对端迟到拨入的宽限期 (默认 6s，范围 (0s,60s]；旧键 accept_grace 仍被接受)
 family_standby = false                # 是否开启双栈温热备用
+mtu_adjust = "suggest"                # 隧道 MTU 调整 (v0.5.7 起): "suggest" (默认，只记录建议), "auto" (稳定偏离后受控 apply), "off" (不观察)。关键边界见下方说明
 
 # 可选：多路径 QoS 测速与动态选路
 [p2p.qos]
@@ -148,8 +149,9 @@ bytes_per_second = 8388608            # 每会话限速，字节/秒 (范围 163
 to = "console"                        # 日志输出去向: "console" 或指定文件路径
 level = "info"                        # 日志级别: "trace", "debug", "info", "warn", "error"
 max_days = 3                          # 日志保留天数
-max_size = "10MB"                     # 单文件轮转大小
+max_size = "10MB"                     # 单文件轮转大小 (默认 10MB；0 表示不按大小轮转)
 max_backups = 3                       # 保留历史切片数量
+disable_print_color = false          # 关闭控制台着色 (默认 false；仅当 to 为 console 时生效，文件日志本来就不着色)
 ```
 
 ## 字段补充说明
@@ -159,6 +161,12 @@ max_backups = 3                       # 保留历史切片数量
 - **多对端组网**：单对端使用 `[peer]`；三台及以上 Hub-Spoke 网状组网改用 `[[peers]]` 数组依次声明多个对端。公网监听端口默认按 `p2p.listen_port + 序号` 递增分配，也可用 `peer.listen_port` 显式指定（多对端之间不得重复）。
 - **P2P 预共享密钥回退**：P2P 握手密钥按 `peer.shared_secret` → `peer.shared_secret_file` → `frp.shared_secret` → `frp.shared_secret_file` 的顺序解析，多对端部署可为每个对端配置独立密钥。
 - **旧键名兼容**：`p2p.keepalive_period` 与 `p2p.accept_grace` 分别是 `p2p.quic_keepalive_period` 与 `p2p.accept_grace_after_failed_punch` 的旧别名，仅在新键未设置时生效。
+- **隧道 MTU 调整**：`p2p.mtu_adjust` 自 v0.5.7 起可用，默认 `suggest`。发送端仍会自行探测单 datagram 载荷上限；这个字段只决定，当确认上限稳定偏离当前隧道 `mtu` 时，是只给建议、自动改 MTU，还是完全不看。稳定条件是同一确认值持续 10 分钟，且期间会话或路径没有切换。建议值是仍能单帧装进确认上限的最大隧道 MTU：内层包按 16 字节补齐，再加上 32 字节 WireGuard 传输头和 4 字节帧头。确认上限 1404 时建议 1360，不是 1380。低于 1280 不给建议，本版也不会把 MTU 调高。
+  - `suggest`：写一条日志，并在 `status` 与 `perf` 的 `suggested_mtu` 中露出。同一建议值只提示一次，不改运行配置。
+  - `auto`：走与手动 `frp-tun apply` 相同的受控提交（journal、失败回滚、重建）。两次自动调整至少间隔 30 分钟；会话切换后这段冷却仍保留。它改的是运行配置和 journal。已经有启用 journal 时，重启恢复的是这次提交，不是配置文件里的旧 `mtu`。
+  - `off`：不观察，也不动作。
+  - 会话或路径切换会清掉尚未满 10 分钟的观察，并清掉 `suggest` 的同值去重。新路径必须重新观察满 10 分钟。
+- **控制台着色**：`log.disable_print_color` 默认 `false`。设为 `true` 时，控制台日志不再着色。只在日志去向为 `console` 时有意义；写入文件的日志本来就不着色。
 
 ## 内置 STUN 目标与外连披露
 

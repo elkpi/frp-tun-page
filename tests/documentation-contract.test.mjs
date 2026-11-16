@@ -217,6 +217,25 @@ test('current release links point to v0.5.13 in both locales', () => {
   assert.doesNotMatch(englishIndex, /v0\.5\.12 \(Current Stable Release\)/);
 });
 
+test('full reference documents mtu_adjust and disable_print_color in both locales', () => {
+  const pages = [
+    ['configuration/full-reference.mdx', '不改运行配置', '受控提交'],
+    ['en/configuration/full-reference.mdx', 'does not change the running configuration', 'controlled commit'],
+  ];
+
+  for (const [page, suggestBoundary, autoBoundary] of pages) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    assert.match(content, /mtu_adjust = "suggest"/, `${page} must show the mtu_adjust default`);
+    assert.match(content, /disable_print_color = false/, `${page} must show disable_print_color`);
+    assert.match(content, /1404[^\n]*1360/, `${page} must keep the MTU suggestion example`);
+    assert.match(content, /10 分钟|10 minutes/, `${page} must state the stability window`);
+    assert.match(content, /30 分钟|30 minutes/, `${page} must state the auto cooldown`);
+    assert.match(content, new RegExp(suggestBoundary), `${page} must say suggest does not apply`);
+    assert.match(content, new RegExp(autoBoundary), `${page} must say auto is a controlled commit`);
+    assert.match(content, /"off"|`off`/, `${page} must document off`);
+  }
+});
+
 test('sidebar configuration translates all custom Chinese labels for English', () => {
   const config = readFileSync(path.join(root, 'astro.config.mjs'), 'utf8');
   const englishLabels = [
