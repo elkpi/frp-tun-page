@@ -1,0 +1,76 @@
+---
+title: frp-tun v0.5.14
+description: '用户态 WireGuard 与数据泵之间的密文改为进程内按 peer 队列交接，不再经 loopback UDP；内核模式保持 UDP，并修正进程内设备的状态端口、日志与关停行为。'
+slug: releases/v0.5.14
+version: v0.5.14
+status: release
+published: true
+---
+
+> **正式发布版本**
+>
+> **发布日期**：2026 年 11 月 18 日
+>
+> **发布文件**：五种架构的 UPX 二进制与校验和文件
+>
+> **使用许可**：遵循[最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+## 摘要
+
+- **进程内密文交接**：用户态 WireGuard 与数据泵之间的密文不再经过 loopback UDP，改为同一进程内按 peer 队列传递。内核模式仍使用 UDP 交接并保留端口绑定。队列按 peer 身份分发（每个 peer 一对容量 1024 的队列），避免多 peer 串包；peer 删除后以同一身份重新加入会获得新一代队列。
+- **状态与关停修正**：进程内设备的监听端口与状态端口统一报告为 0。端口为 0 时防火墙不再添加 UDP 目的端口丢弃规则，启动日志也不再声称监听 UDP 端口。队列写满时写入仍会阻塞，但绑定关闭、peer 端口关闭和数据泵取消都会解除阻塞。
+- **夹具性能对照**：交接夹具在 `GOMAXPROCS=2` 下重跑 40 次（四个场景各 5 次）。相对 loopback 交接，CPU 中位数变化为发送 64B −27.7%、发送 1400B −11.8%、接收 64B −30.2%、接收 1400B −17.1%。其中只有发送 1400B 和接收 64B 两组的双侧相对 MAD 低于 10%；其余两组波动较大。这些数字来自夹具，不是生产接线结果，也不构成默认路径已通过生产接线样本门槛的证明。
+- **资源目标不变**：支持目标仍为 128MB RAM / 32MB Flash。64MB/16MB 仍是压力评估档，不是支持声明。
+- [v0.5.13](/releases/v0.5.13/) 及更早版本已验证的能力和结论继续有效。
+
+## 下载与二进制资产
+
+以下链接指向官网 v0.5.14 GitHub Release。五种架构二进制均已按同一 Release 的 `checksums.txt` 提供 SHA256 摘要，部署前请在本地完成校验。
+
+| 架构 | 文件 | 下载 |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.14_amd64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_amd64) |
+| Linux arm | `frp-tun_v0.5.14_arm` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_arm) |
+| Linux arm64 | `frp-tun_v0.5.14_arm64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_arm64) |
+| Linux mips | `frp-tun_v0.5.14_mips-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.14_mipsle-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_mipsle-softfloat) |
+| 校验清单 | `checksums.txt` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/checksums.txt) |
+
+## 验证
+
+将所需资产下载到同一目录后运行 `sha256sum -c checksums.txt`。如只下载单个架构，请将该文件的摘要与下表对应值比较。
+
+```text
+0f36d37fae85f7732455a9a4be9fba3d8ed6045c8ca387b1a4692ea3b53cd081  frp-tun_v0.5.14_amd64
+6279f780d8b2aefbe725462ccfe70c23c5a2d7c16f8a618acd7f433e7361b1f9  frp-tun_v0.5.14_arm
+1a9e46b4283f03cf6a4a7a44cabb905f295e3f514a7cc4e88b92dbc17c4bba09  frp-tun_v0.5.14_arm64
+2be7dc3d6d2bf91498b3f9d20ec0d34b03790d60b81bfe9fcc868a7de0ff3f1c  frp-tun_v0.5.14_mipsle-softfloat
+adb2720d6bf330147383b5ba51ff36915891c0f6423fb90f0b3f3f328e71cfff  frp-tun_v0.5.14_mips-softfloat
+```
+
+## 已验证范围
+
+- 用户态 WireGuard 路径在同一进程内通过按 peer 队列交接密文；内核模式保持 UDP 交接与端口绑定行为。
+- 进程内设备状态端口报告为 0，端口为 0 时不再添加 UDP 目的端口丢弃规则，相关启动日志与关停行为按进程内设备语义修正。
+- 交接夹具在 `GOMAXPROCS=2` 下完成 40 次样本（四个场景各 5 次）。发送 1400B 与接收 64B 两组双侧相对 MAD 低于 10%；发送 64B 与接收 1400B 两组相对 MAD 较高，不作为稳定收益结论。
+- 官方发行二进制与随附的 `checksums.txt` 对应 SHA256 摘要已在发布资产中提供。
+- 资源目标未改变：128MB RAM / 32MB Flash 仍是支持目标；64MB/16MB 仍为压力评估档，非支持声明。
+
+## 已知限制
+
+- 夹具对照结果不能直接等同于生产接线收益。四个场景中只有两组满足双侧相对 MAD 低于 10%，且未完成生产接线 40 样本门槛，不应据此宣称默认路径已稳定提速。
+- 本版本未包含真机 OpenWrt 或非零 `SO_MARK` 环境验证。复杂 NAT、实际运营商链路与特定硬件负载下的表现仍需在目标环境实测。
+- 交叉编译资产不构成特定硬件、持续高负载、非零 `SO_MARK` 或复杂 NAT 场景的兼容性保证。
+- 软件不提供自动更新或可用性 SLA；请参阅 [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+
+## 升级
+
+在维护窗口备份现有配置和旧版二进制，确认独立回退路径。下载匹配架构的二进制并核对摘要后，停止服务、替换二进制并重启，然后运行 `frp-tun doctor` 检查状态。已有启用 journal 时，重启恢复已提交配置；需要更改配置时使用 `frp-tun apply`。详见[升级与回退](/operations/upgrade-rollback/)。
+
+## 回退
+
+停止服务，恢复备份的旧版二进制，再启动并检查状态。配置回退和二进制回退并非同一操作；操作前请核对目标旧版的发行说明及其 journal 行为。
+
+## 撤回
+
+如发现重大安全或稳定性问题，维护者将在公开 Release 页面标记撤回，并按 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布通告。
