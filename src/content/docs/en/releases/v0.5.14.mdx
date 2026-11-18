@@ -1,0 +1,76 @@
+---
+title: frp-tun v0.5.14
+description: 'Userspace WireGuard hands ciphertext to the data pump through in-process per-peer queues instead of loopback UDP. Kernel mode keeps UDP, and the in-process device now reports correct status port, logging, and shutdown behavior.'
+slug: en/releases/v0.5.14
+version: v0.5.14
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 18, 2026
+>
+> **Assets**: UPX-compressed binaries for five architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- **In-process ciphertext handoff**: Userspace WireGuard no longer passes ciphertext over loopback UDP. It now hands ciphertext to the data pump through in-process per-peer queues in the same process. Kernel mode still uses UDP handoff and keeps port pinning. Queues are dispatched per peer (a pair of queues with capacity 1024 each), avoiding cross-peer interleaving; re-registering the same peer identity after removal receives a fresh queue generation.
+- **Status and shutdown fixes**: In-process devices report listen and status ports as 0. When the port is 0, the firewall no longer adds a UDP destination-port drop rule, and startup logs no longer claim a UDP listen port. A write to a full queue still blocks, but bind close, peer-port close, and pump cancellation all unblock it.
+- **Fixture comparison**: The handoff fixture was rerun 40 times at `GOMAXPROCS=2` (five runs for each of four scenarios). Relative to loopback handoff, CPU medians changed by tx 64B −27.7%, tx 1400B −11.8%, rx 64B −30.2%, and rx 1400B −17.1%. Only the tx 1400B and rx 64B groups had both-side relative MAD below 10%; the other two groups varied more. These numbers come from a fixture, not production wiring, and they do not prove the default path passed a production-wiring sample threshold.
+- **Resource targets unchanged**: The support target remains 128MB RAM / 32MB Flash. 64MB/16MB remains a stress-evaluation tier, not a supported claim.
+- Previously validated capabilities and conclusions from [v0.5.13](/en/releases/v0.5.13/) and earlier remain in effect.
+
+## Downloads
+
+The links below point to the official v0.5.14 GitHub Release on this site. SHA256 digests for all five architecture binaries are provided in the release `checksums.txt`; verify locally before deployment.
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.14_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_amd64) |
+| Linux arm | `frp-tun_v0.5.14_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_arm) |
+| Linux arm64 | `frp-tun_v0.5.14_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_arm64) |
+| Linux mips | `frp-tun_v0.5.14_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.14_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/frp-tun_v0.5.14_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.14/checksums.txt) |
+
+## Verification
+
+Download the required assets into one directory and run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its digest with the corresponding value below.
+
+```text
+0f36d37fae85f7732455a9a4be9fba3d8ed6045c8ca387b1a4692ea3b53cd081  frp-tun_v0.5.14_amd64
+6279f780d8b2aefbe725462ccfe70c23c5a2d7c16f8a618acd7f433e7361b1f9  frp-tun_v0.5.14_arm
+1a9e46b4283f03cf6a4a7a44cabb905f295e3f514a7cc4e88b92dbc17c4bba09  frp-tun_v0.5.14_arm64
+2be7dc3d6d2bf91498b3f9d20ec0d34b03790d60b81bfe9fcc868a7de0ff3f1c  frp-tun_v0.5.14_mipsle-softfloat
+adb2720d6bf330147383b5ba51ff36915891c0f6423fb90f0b3f3f328e71cfff  frp-tun_v0.5.14_mips-softfloat
+```
+
+## Validated scope
+
+- The userspace WireGuard path hands ciphertext in-process through per-peer queues; kernel mode keeps UDP handoff and port-pinning behavior.
+- In-process devices report a status port of 0. When the port is 0, no UDP destination-port drop rule is added, and related startup logging and shutdown behavior follow in-process device semantics.
+- The handoff fixture completed 40 samples at `GOMAXPROCS=2` (five runs for each of four scenarios). The tx 1400B and rx 64B groups had both-side relative MAD below 10%; the tx 64B and rx 1400B groups showed higher relative MAD and are not treated as a stable gain.
+- Official release binaries and their corresponding SHA256 digests are provided with the accompanying `checksums.txt`.
+- Resource targets are unchanged: 128MB RAM / 32MB Flash remains the support target. Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+
+## Known limitations
+
+- Fixture comparison results do not directly equal production-wiring gains. Only two of the four scenarios met both-side relative MAD below 10%, and the production-wiring 40-sample threshold was not completed, so this release must not claim a stable speedup on the default path.
+- This release does not include real-device OpenWrt or nonzero `SO_MARK` validation. Behavior on complex NAT, live carrier paths, and specific hardware loads still requires target-environment measurement.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. See [Upgrade & rollback](/en/operations/upgrade-rollback/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).
