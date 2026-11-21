@@ -1,0 +1,76 @@
+---
+title: frp-tun v0.5.15
+description: '新增 site.data_plane = "tun-quic"：单对端 TUN 直接对接经认证的 QUIC Datagram，默认数据面仍为 wg-quic；动态 IPv6 前缀经活动控制流同步，并修复停用 journal 后的启动问题。'
+slug: releases/v0.5.15
+version: v0.5.15
+status: release
+published: true
+---
+
+> **正式发布版本**
+>
+> **发布日期**：2026 年 11 月 21 日
+>
+> **发布文件**：五种架构的 UPX 二进制与校验和文件
+>
+> **使用许可**：遵循[最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+## 摘要
+
+- **新增 TUN + QUIC 数据面**：新增站点级 `site.data_plane = "tun-quic"`。单对端直连时，IP 包由内核 TUN 直接交给经认证的 QUIC Datagram，不再额外封装一层 WireGuard。未配置该字段时仍使用 WireGuard over QUIC（默认 `wg-quic`），旧配置行为不变。
+- **认证与隔离**：`tun-quic` 在现有站点认证之上增加绑定当前 QUIC 连接的双向私钥证明，并要求数据面模式一致、等长 MTU 探针通过；入站和出站 IP 包按已批准的对端前缀过滤。该模式不支持中继回退、Stream 承载、自动 MTU 调整和实验性双发。
+- **动态 IPv6 前缀**：动态前缀只通过已完成认证的活动 QUIC 控制流同步，配合租约、策略路由、nftables 与来源过滤控制授权；撤销后保留隔离保护，不回落到普通出口。
+- **生命周期修复与兼容性**：修复 `down` 后停用 journal 状态导致无法再次启动的问题；旧配置摘要与 journal 保持兼容。
+- **升级注意**：`tun-quic` 使用新协议号，两端必须同时升级到 v0.5.15 才能互通；旧试用版（preview1–preview5）不互通。`wg-quic` 协议号不变。
+- [v0.5.14](/releases/v0.5.14/) 及更早版本已验证的能力和结论继续有效。
+
+## 下载与二进制资产
+
+以下链接指向官网 v0.5.15 GitHub Release。五种架构二进制均已按同一 Release 的 `checksums.txt` 提供 SHA256 摘要，部署前请在本地完成校验。
+
+| 架构 | 文件 | 下载 |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.15_amd64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_amd64) |
+| Linux arm | `frp-tun_v0.5.15_arm` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_arm) |
+| Linux arm64 | `frp-tun_v0.5.15_arm64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_arm64) |
+| Linux mips | `frp-tun_v0.5.15_mips-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.15_mipsle-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_mipsle-softfloat) |
+| 校验清单 | `checksums.txt` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/checksums.txt) |
+
+## 验证
+
+将所需资产下载到同一目录后运行 `sha256sum -c checksums.txt`。如只下载单个架构，请将该文件的摘要与下表对应值比较。
+
+```text
+e17b696281f93c1948548302adb71a0f1a060ed12fcd26e172a95b7938f856f3  frp-tun_v0.5.15_amd64
+04bb9abf8b170086ce6a54ac84d8a5034b09226b99520dcc4264c0dc67b274eb  frp-tun_v0.5.15_arm
+2131798f993c983a92bdadd4815986204e49bd3f679d92e66145219462e79231  frp-tun_v0.5.15_arm64
+e77a5b93eb08b08d4ebb3d6b7b2fdd0f0ad170de8a8818e00da6e4d3e0d26a7f  frp-tun_v0.5.15_mipsle-softfloat
+63989bfde096cac6fa0047ae02bb8c477ed210e6d59eba31e45708972a607cf2  frp-tun_v0.5.15_mips-softfloat
+```
+
+## 已验证范围
+
+- 五种架构发行二进制已对照上游 `checksums.txt` 完成 SHA256 校验；`checksums.txt` 自身摘要为 `8f52ed5742cba51f1097fd6aecf35371072a6edfe5d318e92a173ac05701a0b9`。
+- 上游测试覆盖环回 QUIC 认证、动态前缀通告与撤销、firewall 更新失败关闭、租约失效，以及旧版合成 journal 恢复。
+- `tun-quic` 为单对端直连数据面；模式不一致、未完成私钥证明或 MTU 探针失败时拒绝会话，不解析或转发业务数据。
+- 资源目标未改变：128MB RAM / 32MB Flash 仍是支持目标；64MB/16MB 仍为压力评估档，非支持声明。
+
+## 已知限制
+
+- `tun-quic` 不支持中继回退、多对端、Stream 承载、自动 MTU 调整和实验性双发；两端必须同时升级到 v0.5.15，旧试用版（preview1–preview5）不互通。
+- 本版未提供真实内核 TUN 与 QUIC 在专用特权环境下的端到端 1000 pps 对照、非零 `SO_MARK` 路由验证，也没有真机 OpenWrt 验证；不宣称性能收益或更低的资源占用。
+- 交叉编译资产不构成特定硬件、持续高负载、非零 `SO_MARK` 或复杂 NAT 场景的兼容性保证。
+- 软件不提供自动更新或可用性 SLA；请参阅 [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+
+## 升级
+
+在维护窗口备份现有配置和旧版二进制，确认独立回退路径。下载匹配架构的二进制并核对摘要后，停止服务、替换二进制并重启，然后运行 `frp-tun doctor` 检查状态。已有启用 journal 时，重启恢复已提交配置；需要更改配置时使用 `frp-tun apply`。如需试用 `tun-quic`，先执行 `down`，确认两端都已升级并采用一致配置后再启动；详见[升级与回退](/operations/upgrade-rollback/)。
+
+## 回退
+
+停止服务，恢复备份的旧版二进制，再启动并检查状态。配置回退和二进制回退并非同一操作；操作前请核对目标旧版的发行说明及其 journal 行为。
+
+## 撤回
+
+如发现重大安全或稳定性问题，维护者将在公开 Release 页面标记撤回，并按 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布通告。

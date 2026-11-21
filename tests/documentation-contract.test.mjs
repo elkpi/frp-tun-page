@@ -93,6 +93,7 @@ test('all documentation pages have an English counterpart', () => {
     'en/releases/v0.5.12.mdx',
     'en/releases/v0.5.13.mdx',
     'en/releases/v0.5.14.mdx',
+    'en/releases/v0.5.15.mdx',
   ];
 
   for (const page of expectedEnglishPages) {
@@ -221,14 +222,46 @@ test('v0.5.14 release notes hand ciphertext in-process and keep fixture gains be
 });
 
 
-test('current release links point to v0.5.14 in both locales', () => {
+test('v0.5.15 release notes document tun-quic, interoperability, and the checksum manifest', () => {
+  const chinesePath = path.join(root, 'src/content/docs/releases/v0.5.15.mdx');
+  const englishPath = path.join(root, 'src/content/docs/en/releases/v0.5.15.mdx');
+  assert.equal(existsSync(chinesePath), true, 'Chinese v0.5.15 release notes must exist');
+  assert.equal(existsSync(englishPath), true, 'English v0.5.15 release notes must exist');
+
+  const chinese = readFileSync(chinesePath, 'utf8');
+  const english = readFileSync(englishPath, 'utf8');
+  for (const content of [chinese, english]) {
+    assert.match(content, /^version: v0\.5\.15$/m);
+    assert.match(content, /^status: release$/m);
+    assert.match(content, /^published: true$/m);
+    assert.match(content, /tun-quic/);
+    assert.match(content, /wg-quic/);
+    assert.match(content, /preview1[–-]preview5/);
+    assert.match(content, /8f52ed5742cba51f1097fd6aecf35371072a6edfe5d318e92a173ac05701a0b9/);
+    assert.match(content, /e17b696281f93c1948548302adb71a0f1a060ed12fcd26e172a95b7938f856f3/);
+    assert.match(content, /128MB RAM \/ 32MB Flash/);
+    assert.match(content, /64MB\/16MB/);
+  }
+  assert.match(chinese, /2026 年 11 月 21 日/);
+  assert.match(english, /November 21, 2026/);
+  assert.match(chinese, /^slug: releases\/v0\.5\.15$/m);
+  assert.match(english, /^slug: en\/releases\/v0\.5\.15$/m);
+  assert.match(chinese, /两端必须同时升级到 v0\.5\.15 才能互通/);
+  assert.match(english, /Both ends must upgrade to v0\.5\.15 to interoperate/);
+  assert.match(chinese, /默认数据面仍为 wg-quic/);
+  assert.match(english, /default data plane remains wg-quic/);
+  assert.match(chinese, /不宣称性能收益或更低的资源占用/);
+  assert.match(english, /claims neither performance gains nor lower resource usage/);
+});
+
+test('current release links point to v0.5.15 in both locales', () => {
   const pages = [
-    ['index.mdx', '/releases/v0.5.14/'],
-    ['en/index.mdx', '/en/releases/v0.5.14/'],
-    ['releases/index.mdx', '/releases/v0.5.14/'],
-    ['en/releases/index.mdx', '/en/releases/v0.5.14/'],
-    ['configuration/openwrt.mdx', '/releases/v0.5.14/'],
-    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.14/'],
+    ['index.mdx', '/releases/v0.5.15/'],
+    ['en/index.mdx', '/en/releases/v0.5.15/'],
+    ['releases/index.mdx', '/releases/v0.5.15/'],
+    ['en/releases/index.mdx', '/en/releases/v0.5.15/'],
+    ['configuration/openwrt.mdx', '/releases/v0.5.15/'],
+    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.15/'],
   ];
 
   for (const [page, currentReleasePath] of pages) {
@@ -236,17 +269,17 @@ test('current release links point to v0.5.14 in both locales', () => {
     assert.match(content, new RegExp(currentReleasePath.replaceAll('/', '\\/')),
       `${page} must link to ${currentReleasePath}`);
     if (page.endsWith('configuration/openwrt.mdx')) {
-      assert.match(content, /frp-tun_v0\.5\.14_/,
-        `${page} must use v0.5.14 binary names`);
+      assert.match(content, /frp-tun_v0\.5\.15_/,
+        `${page} must use v0.5.15 binary names`);
     }
   }
 
   const chineseIndex = readFileSync(path.join(root, 'src/content/docs/releases/index.mdx'), 'utf8');
   const englishIndex = readFileSync(path.join(root, 'src/content/docs/en/releases/index.mdx'), 'utf8');
-  assert.match(chineseIndex, /v0\.5\.14 \(当前稳定版本\)/);
-  assert.match(englishIndex, /v0\.5\.14 \(Current Stable Release\)/);
-  assert.doesNotMatch(chineseIndex, /v0\.5\.13 \(当前稳定版本\)/);
-  assert.doesNotMatch(englishIndex, /v0\.5\.13 \(Current Stable Release\)/);
+  assert.match(chineseIndex, /v0\.5\.15 \(当前稳定版本\)/);
+  assert.match(englishIndex, /v0\.5\.15 \(Current Stable Release\)/);
+  assert.doesNotMatch(chineseIndex, /v0\.5\.14 \(当前稳定版本\)/);
+  assert.doesNotMatch(englishIndex, /v0\.5\.14 \(Current Stable Release\)/);
 });
 
 test('full reference documents mtu_adjust and disable_print_color in both locales', () => {

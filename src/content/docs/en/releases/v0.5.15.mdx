@@ -1,0 +1,76 @@
+---
+title: frp-tun v0.5.15
+description: 'Adds site.data_plane = "tun-quic": a single-peer TUN directly carries authenticated QUIC Datagrams; the default data plane remains wg-quic. Dynamic IPv6 prefixes synchronize over the active control stream, and the stopped-journal restart bug is fixed.'
+slug: en/releases/v0.5.15
+version: v0.5.15
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 21, 2026
+>
+> **Assets**: UPX-compressed binaries for five architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- **New TUN + QUIC data plane**: Adds the site-level `site.data_plane = "tun-quic"` setting. For a single direct peer, IP packets move from the kernel TUN straight to authenticated QUIC Datagrams without an additional WireGuard layer. Leaving the field unset keeps WireGuard over QUIC (the default `wg-quic`), so existing configurations behave as before.
+- **Authentication and isolation**: `tun-quic` adds a bidirectional site private-key proof bound to the current QUIC connection on top of existing site authentication. Both ends must use the same data plane and pass an equal-length MTU probe; inbound and outbound IP packets are filtered against approved peer prefixes. This mode does not support relay fallback, Stream transport, automatic MTU adjustment, or experimental duplication.
+- **Dynamic IPv6 prefixes**: Prefixes are advertised only over an active, authenticated QUIC control stream and are governed by leases, policy routes, nftables, and source filtering. Revocation retains isolation protection rather than falling back to a normal egress path.
+- **Lifecycle fix and compatibility**: Fixes a failure to start again after `down` leaves the journal in a stopped state. Existing configuration digests and journals remain compatible.
+- **Upgrade notice**: `tun-quic` uses a new protocol number. Both ends must upgrade to v0.5.15 to interoperate; older previews (preview1–preview5) are incompatible. The `wg-quic` protocol number is unchanged.
+- Previously validated capabilities and conclusions from [v0.5.14](/en/releases/v0.5.14/) and earlier remain in effect.
+
+## Downloads
+
+The links below point to the official v0.5.15 GitHub Release on this site. SHA256 digests for all five architecture binaries are provided in the release `checksums.txt`; verify locally before deployment.
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.15_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_amd64) |
+| Linux arm | `frp-tun_v0.5.15_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_arm) |
+| Linux arm64 | `frp-tun_v0.5.15_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_arm64) |
+| Linux mips | `frp-tun_v0.5.15_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.15_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/frp-tun_v0.5.15_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.15/checksums.txt) |
+
+## Verification
+
+Download the required assets into one directory and run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its digest with the corresponding value below.
+
+```text
+e17b696281f93c1948548302adb71a0f1a060ed12fcd26e172a95b7938f856f3  frp-tun_v0.5.15_amd64
+04bb9abf8b170086ce6a54ac84d8a5034b09226b99520dcc4264c0dc67b274eb  frp-tun_v0.5.15_arm
+2131798f993c983a92bdadd4815986204e49bd3f679d92e66145219462e79231  frp-tun_v0.5.15_arm64
+e77a5b93eb08b08d4ebb3d6b7b2fdd0f0ad170de8a8818e00da6e4d3e0d26a7f  frp-tun_v0.5.15_mipsle-softfloat
+63989bfde096cac6fa0047ae02bb8c477ed210e6d59eba31e45708972a607cf2  frp-tun_v0.5.15_mips-softfloat
+```
+
+## Validated scope
+
+- SHA256 digests for all five architecture binaries were verified against the upstream `checksums.txt`. The manifest digest is `8f52ed5742cba51f1097fd6aecf35371072a6edfe5d318e92a173ac05701a0b9`.
+- Upstream tests cover loopback QUIC authentication, dynamic-prefix advertisement and revocation, firewall-update failure shutdown, lease expiry, and recovery from a synthetic older journal.
+- `tun-quic` is a single-peer direct data plane. Sessions are rejected without matching modes, a completed private-key proof, and a passing MTU probe; no application data is parsed or forwarded otherwise.
+- Resource targets are unchanged: 128MB RAM / 32MB Flash remains the support target. Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+
+## Known limitations
+
+- `tun-quic` does not support relay fallback, multiple peers, Stream transport, automatic MTU adjustment, or experimental duplication. Both ends must upgrade to v0.5.15; older previews (preview1–preview5) are incompatible.
+- This release includes no dedicated privileged-environment end-to-end 1000 pps comparison for a real kernel TUN with QUIC, no nonzero `SO_MARK` routing validation, and no real-device OpenWrt validation. It claims neither performance gains nor lower resource usage.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. To try `tun-quic`, run `down` first and start only after both ends have been upgraded and configured consistently. See [Upgrade & rollback](/en/operations/upgrade-rollback/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).
