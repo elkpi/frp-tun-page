@@ -1,12 +1,13 @@
 ---
 title: Release Notes & Version History
 description: frp-tun official release assets, SHA256 checksums, upgrade/rollback guidance, and verification evidence.
-version: v0.5.14
+version: v0.5.15
 ---
 
 Inspect official binary download links, SHA256 checksum manifests, and validation records across `frp-tun` public releases:
 
-- [v0.5.14 (Current Stable Release)](/en/releases/v0.5.14/): Userspace WireGuard hands ciphertext to the data pump through in-process per-peer queues instead of loopback UDP; kernel mode keeps UDP, and in-process device status port, logging, and shutdown behavior are fixed. The fixture comparison does not prove the default path passed the production-wiring sample threshold.
+- [v0.5.15 (Current Stable Release)](/en/releases/v0.5.15/): Adds `site.data_plane = "tun-quic"` for single-peer TUN over authenticated QUIC Datagrams; the default data plane remains `wg-quic`. Dynamic IPv6 prefixes synchronize over the active control stream, and the stopped-journal restart bug is fixed. Both ends must upgrade to v0.5.15 to interoperate.
+- [v0.5.14](/en/releases/v0.5.14/): Userspace WireGuard hands ciphertext to the data pump through in-process per-peer queues instead of loopback UDP; kernel mode keeps UDP, and in-process device status port, logging, and shutdown behavior are fixed. The fixture comparison does not prove the default path passed the production-wiring sample threshold.
 - [v0.5.13](/en/releases/v0.5.13/): Userspace WireGuard and real QUIC two-ended path attribution. Receive-direction 1400B improved CPU by 9.42%, below the 10% threshold, so production still defaults to batch receive.
 - [v0.5.12](/en/releases/v0.5.12/): Fixes batched sendmmsg/recvmmsg negative-count fallback and reuses Endpoint batch-write buffers per call. Production still defaults to batch receive; receive-mode comparisons are diagnostic samples only.
 - [v0.5.11](/en/releases/v0.5.11/): Batched LoopbackBind and Endpoint I/O, lazy expiry; fair benchmarks show demonstrated CPU savings only for 1400B packets, with increased heap objects per packet.

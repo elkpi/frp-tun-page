@@ -1,12 +1,13 @@
 ---
 title: 发行说明与版本历史
 description: frp-tun 正式版本资产、SHA256 校验和、升级回退指南与验证证据。
-version: v0.5.14
+version: v0.5.15
 ---
 
 在此查阅 `frp-tun` 历次公开发行版本的二进制下载地址、SHA256 校验清单与验证记录：
 
-- [v0.5.14 (当前稳定版本)](/releases/v0.5.14/)：用户态 WireGuard 与数据泵之间的密文改为进程内按 peer 队列交接；内核模式保持 UDP，进程内设备状态端口、日志与关停行为修正，夹具对照 CPU 改善未证明默认路径通过生产接线样本门槛。
+- [v0.5.15 (当前稳定版本)](/releases/v0.5.15/)：新增 `site.data_plane = "tun-quic"`，单对端 TUN 直接对接经认证的 QUIC Datagram，默认数据面仍为 `wg-quic`；动态 IPv6 前缀经活动控制流同步，并修复停用 journal 后的启动问题。两端须同时升级到 v0.5.15 才能互通。
+- [v0.5.14](/releases/v0.5.14/)：用户态 WireGuard 与数据泵之间的密文改为进程内按 peer 队列交接；内核模式保持 UDP，进程内设备状态端口、日志与关停行为修正，夹具对照 CPU 改善未证明默认路径通过生产接线样本门槛。
 - [v0.5.13](/releases/v0.5.13/)：用户态 WireGuard 与真实 QUIC 双端链路归因；接收方向 1400B 的 CPU 改善 9.42%，未达 10% 门槛，生产默认仍为批量接收。
 - [v0.5.12](/releases/v0.5.12/)：修复批量 sendmmsg/recvmmsg 负计数回退，Endpoint 批写按调用复用缓冲；生产默认仍为批量接收，接收模式对照只是诊断样本。
 - [v0.5.11](/releases/v0.5.11/)：LoopbackBind 与 Endpoint 批量收发、惰性过期；公平基准显示 CPU 收益仅在 1400B 档有实证，heap 每包对象数增加。
