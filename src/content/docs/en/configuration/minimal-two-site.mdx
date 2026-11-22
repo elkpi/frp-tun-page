@@ -91,3 +91,69 @@ mode = "nftables"
 - **Server Connection & Auth**: Both nodes must point their `server_addr` and `server_port` to the same accessible frps instance, with identical `token` values matching the frps configuration.
 - **Pre-Shared Secret**: Both endpoints must configure identical `shared_secret` strings for XTCP/STCP cryptographic session negotiation.
 - **Asymmetric Key Pairs**: Set `public_key` on Site A to Site B's public key, and set `public_key` on Site B to Site A's public key.
+
+---
+
+## Scenario A: Single-peer tun-quic direct path
+
+The lightest setup: a single-peer TUN carries authenticated QUIC Datagrams without a WireGuard layer. **Relay fallback is not supported.** Configure exactly one `[peer]` and disable relay and Stream transport; IPv6 scenarios require a site MTU of at least 1280. Both ends must run v0.5.15 or newer; older previews (preview1–preview5) are incompatible.
+
+```toml
+# Site A (site-a.toml; configure Site B symmetrically)
+schema_version = 1
+
+[site]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = false
+mtu = 1420
+data_plane = "tun-quic"
+
+[peer]
+id = "site-b"
+public_key = "REPLACE_WITH_PEER_PUBLIC_KEY"
+shared_secret = "REPLACE_WITH_PEER_SHARED_SECRET"
+allow_relay = false
+
+[p2p]
+data_transport = "datagram"
+```
+
+---
+
+## Scenario B: auto switching with cleartext private Hubs
+
+Recommended for a self-owned Hub cluster: each peer switches among a direct path, private Hubs in configured order, and public STCP. `hub_unencrypted = true` takes effect only when both ends enable it; private Hubs then carry IP without WireGuard, while public STCP always carries WireGuard. Each peer needs a relay path: either `site.allow_relay && peer.allow_relay`, or `peer.private_relay.hubs`. Switching is built in: fall back only after 3 consecutive failures with no direct path; promote a direct path back after it stays stable for 60 seconds and 5 minutes have passed since the last fallback; a recovered higher-priority Hub takes over immediately. `data_plane` / `hub_unencrypted` cannot be changed at runtime; run `down` before starting again.
+
+```toml
+# Spoke site (site-a.toml)
+schema_version = 1
+
+[site]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+mtu = 1420
+data_plane = "auto"
+hub_unencrypted = true
+
+[peer]
+id = "site-hub-1"
+public_key = "REPLACE_WITH_HUB1_PUBLIC_KEY"
+shared_secret = "REPLACE_WITH_HUB1_SHARED_SECRET"
+allow_relay = true
+
+[peer.private_relay]
+hubs = ["site-hub-1", "site-hub-2"]
+key = "REPLACE_WITH_RELAY_KEY"
+
+# A pure Hub node (referenced by other peers' hubs with no relay/fallback of its own) is excluded
+# from this site's forwarding and routing plan. Hub authorization still comes from private_relay.pairs;
+# the pair secret needed for endpoint proof is shared by the two data endpoints.
+```
+
+When interoperating with fixed `wg-quic` mode or older versions, the `peer.ipv6.sync_port` default has changed from a fixed 51830 to a per-site-pair derivation. Both ends must explicitly configure the same available port; otherwise dynamic-prefix synchronization will not work (static subnets are unaffected).

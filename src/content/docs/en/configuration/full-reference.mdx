@@ -4,7 +4,7 @@ description: Complete frp-tun parameter dictionary, default values, and producti
 version: preview
 ---
 
-> **Applicable version: technical preview (field dictionary aligned with v0.5.15).** Production security best practice: restrict configuration file permissions to `0600` (`chmod 600 config.toml`) to prevent unauthorized local users from reading cryptographic credentials.
+> **Applicable version: technical preview (field dictionary aligned with v0.5.16).** Production security best practice: restrict configuration file permissions to `0600` (`chmod 600 config.toml`) to prevent unauthorized local users from reading cryptographic credentials.
 
 `frp-tun` utilizes standard TOML syntax. The full parameter dictionary and sanitized production template are documented below:
 
@@ -21,6 +21,8 @@ tunnel_address = "198.51.100.1/32"    # Local WireGuard point-to-point virtual t
 role = "proxy"                        # Role: "proxy" (passive listener) or "visitor" (active dialer)
 allow_relay = true                    # Allow fallback to STCP relay when direct P2P fails (default: true)
 mtu = 1420                            # WireGuard MTU (default: 1420, valid range 576~9000, must match across all peers)
+# data_plane = "auto"                 # Data plane: "wg-quic" (default), "tun-quic" (single-peer direct), or "auto" (direct/private Hub/STCP automatic switching)
+# hub_unencrypted = false             # Applies only to auto/tun-quic, default false; when both ends enable it, private Hubs carry IP without WireGuard
 
 # Optional: IPv6 Tunnel & Dynamic Prefix Synchronization
 [site.ipv6]
@@ -59,7 +61,8 @@ public_key = "REPLACE_WITH_PEER_PUBLIC_KEY" # Peer static WireGuard public key (
 enabled = false
 tunnel_address = "2001:db8:1::2/128"
 accept_dynamic = false
-sync_port = 51830
+# sync_port = 51830                   # UDP port for in-tunnel dynamic prefix sync; defaults to a per-site-pair derivation (older versions used 51830 everywhere).
+                                      # Two auto peers exchange the actually bound port through signed signaling; with fixed-mode or older peers, both ends must explicitly configure the same available port
 
 # ==============================================================================
 # 3. FRP Signaling & Underlay Configuration

@@ -297,14 +297,14 @@ test('v0.5.16 release notes cover auto plane, explicit sync_port, and verificati
   assert.match(english, /both ends.*explicitly.*sync_port/i);
 });
 
-test('current release links point to v0.5.15 in both locales', () => {
+test('current release links point to v0.5.16 in both locales', () => {
   const pages = [
-    ['index.mdx', '/releases/v0.5.15/'],
-    ['en/index.mdx', '/en/releases/v0.5.15/'],
-    ['releases/index.mdx', '/releases/v0.5.15/'],
-    ['en/releases/index.mdx', '/en/releases/v0.5.15/'],
-    ['configuration/openwrt.mdx', '/releases/v0.5.15/'],
-    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.15/'],
+    ['index.mdx', '/releases/v0.5.16/'],
+    ['en/index.mdx', '/en/releases/v0.5.16/'],
+    ['releases/index.mdx', '/releases/v0.5.16/'],
+    ['en/releases/index.mdx', '/en/releases/v0.5.16/'],
+    ['configuration/openwrt.mdx', '/releases/v0.5.16/'],
+    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.16/'],
   ];
 
   for (const [page, currentReleasePath] of pages) {
@@ -312,17 +312,55 @@ test('current release links point to v0.5.15 in both locales', () => {
     assert.match(content, new RegExp(currentReleasePath.replaceAll('/', '\\/')),
       `${page} must link to ${currentReleasePath}`);
     if (page.endsWith('configuration/openwrt.mdx')) {
-      assert.match(content, /frp-tun_v0\.5\.15_/,
-        `${page} must use v0.5.15 binary names`);
+      assert.match(content, /frp-tun_v0\.5\.16_/,
+        `${page} must use v0.5.16 binary names`);
     }
   }
 
   const chineseIndex = readFileSync(path.join(root, 'src/content/docs/releases/index.mdx'), 'utf8');
   const englishIndex = readFileSync(path.join(root, 'src/content/docs/en/releases/index.mdx'), 'utf8');
-  assert.match(chineseIndex, /v0\.5\.15 \(当前稳定版本\)/);
-  assert.match(englishIndex, /v0\.5\.15 \(Current Stable Release\)/);
-  assert.doesNotMatch(chineseIndex, /v0\.5\.14 \(当前稳定版本\)/);
-  assert.doesNotMatch(englishIndex, /v0\.5\.14 \(Current Stable Release\)/);
+  assert.match(chineseIndex, /v0\.5\.16 \(当前稳定版本\)/);
+  assert.match(englishIndex, /v0\.5\.16 \(Current Stable Release\)/);
+  assert.doesNotMatch(chineseIndex, /v0\.5\.15 \(当前稳定版本\)/);
+  assert.doesNotMatch(englishIndex, /v0\.5\.15 \(Current Stable Release\)/);
+});
+
+test('v0.5.16 auto plane and pin are documented in both locales', () => {
+  const cliPages = [
+    'operations/cli-reference.mdx',
+    'en/operations/cli-reference.mdx',
+  ];
+  for (const page of cliPages) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    assert.match(content, /frp-tun pin/, `${page} must document frp-tun pin`);
+    assert.match(content, /--peer/, `${page} must document --peer`);
+    assert.match(content, /--target/, `${page} must document --target`);
+    assert.match(content, /data_plane = "auto"/, `${page} must document the auto data plane`);
+  }
+
+  const fullReferencePages = [
+    'configuration/full-reference.mdx',
+    'en/configuration/full-reference.mdx',
+  ];
+  for (const page of fullReferencePages) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    assert.match(content, /data_plane = "auto"/, `${page} must document data_plane`);
+    assert.match(content, /hub_unencrypted = false/, `${page} must document hub_unencrypted`);
+    assert.match(content, /按站点对.*派生|per.site.pair.*derivation/i, `${page} must document the new sync_port default`);
+  }
+
+  const scenarioPages = [
+    'configuration/minimal-two-site.mdx',
+    'en/configuration/minimal-two-site.mdx',
+  ];
+  for (const page of scenarioPages) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    assert.match(content, /data_plane = "auto"/, `${page} must include an auto scenario`);
+    assert.match(content, /hub_unencrypted = true/, `${page} must include a cleartext Hub scenario`);
+    assert.match(content, /hubs = \[/, `${page} must show private_relay.hubs`);
+    assert.match(content, /data_plane = "tun-quic"/, `${page} must include a tun-quic scenario`);
+    assert.match(content, /allow_relay = false/, `${page} must disable relay in the tun-quic scenario`);
+  }
 });
 
 test('full reference documents mtu_adjust and disable_print_color in both locales', () => {

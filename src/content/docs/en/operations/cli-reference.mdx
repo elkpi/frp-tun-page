@@ -180,7 +180,23 @@ frp-tun apply [-c /path/to/new_config.toml] [--socket /var/run/frp-tun.sock]
 
 ---
 
-### 2.9 down (Stop and Teardown Resources)
+### 2.9 pin (Pin the Carrier per Peer)
+
+Pins a direct or relay carrier for one peer, bypassing failure thresholds and the promotion cooldown. The three-way handshake is still required on both ends. The peer stays blackholed until the target is reachable; `clear` releases the pin and keeps the current path. The command only writes the journal and starts negotiation; it neither waits for peer confirmation nor fails because a peer is offline.
+
+```bash
+frp-tun pin --peer site-remote --target direct
+frp-tun pin --peer site-remote --target relay
+frp-tun pin --peer site-remote --target clear
+```
+
+- `--peer <id>`: **Required**, target peer site ID.
+- `--target <direct|relay|clear>`: **Required**, carrier to pin; `clear` releases the pin.
+- `--socket <path>`: Path to control socket (default: `/var/run/frp-tun.sock`).
+
+---
+
+### 2.10 down (Stop and Teardown Resources)
 
 Gracefully stops the daemon and removes all owned network interfaces, policy routing rules, and blackhole filters.
 
@@ -195,7 +211,7 @@ frp-tun down [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 
 ---
 
-### 2.10 forget-prefix (Retire IPv6 Prefix)
+### 2.11 forget-prefix (Retire IPv6 Prefix)
 
 Unregisters a retired IPv6 prefix from persistent blackhole protection.
 
@@ -208,7 +224,7 @@ frp-tun forget-prefix --prefix <cidr> [--socket /var/run/frp-tun.sock]
 
 ---
 
-### 2.11 disable-ipv6 (Disable IPv6 Protection)
+### 2.12 disable-ipv6 (Disable IPv6 Protection)
 
 Signals the running daemon to disable IPv6 operations and clear related route rules.
 
@@ -228,3 +244,15 @@ frp-tun disable-ipv6 [--socket /var/run/frp-tun.sock]
 | `2` | **Usage / Config Error** | Invalid flags or syntax errors in configuration. |
 | `3` | **Prerequisite Failure** | Missing system requirements or resource conflicts detected. |
 | `4` | **Runtime Failure** | Daemon startup failure, control socket communication error, or a journal that refuses recovery. |
+
+---
+
+## 3. auto data plane (v0.5.16)
+
+`site.data_plane = "auto"` makes each peer switch among a direct QUIC path, private Hubs in configured order, and public STCP: direct is preferred; after 3 consecutive failures with no usable direct path, traffic falls back; a direct path is promoted back only after it stays stable for 60 seconds and 5 minutes have passed since the last fallback; a higher-priority recovered Hub takes over immediately. Ports and MTU are configured once at startup; switching only changes the carrier and does not rebuild interfaces or the routing plan. A peer stays blackholed while it is being identified or is not yet committed.
+
+- With `site.hub_unencrypted = true` on both ends, private Hubs carry IP packets without WireGuard while end-to-end authentication, sequence numbers, and the replay window are retained. If either end leaves it off, the same Hub carries WireGuard payloads. Public STCP always carries WireGuard.
+- A pure Hub node (referenced by other peers' `private_relay.hubs`, with no relay or fallback capability of its own) is excluded from this site's forwarding and routing plan.
+- `peer.ipv6.sync_port` defaults to a per-site-pair derivation; two `auto` peers exchange the actually bound port through signed signaling. When interoperating with fixed-mode or older peers, both ends must explicitly configure the same available port.
+- The data plane and `hub_unencrypted` cannot be hot-switched at runtime; run `down` before starting again.
+- The `plane_*` fields in `status` show the carrier, payload, Hub, pin target, consecutive failures, and promotion cooldown remaining per peer. `plane_forward` is true only when the configuration is committed and the carrier is connected.

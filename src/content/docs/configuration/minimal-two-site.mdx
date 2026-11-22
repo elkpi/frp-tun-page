@@ -91,3 +91,68 @@ mode = "nftables"
 - **服务连接与认证**：两端的 `server_addr` 与 `server_port` 必须指向同一个公网可达的 frps 服务端实例，且两端的 `token` 必须与服务端所配置的认证值完全一致；
 - **端对端预共享密钥**：两端的 `shared_secret` 必须完全相同，用于端对端 XTCP/STCP 信令握手时的鉴权校验；
 - **非对称密钥对**：站点 A 的公钥填写在站点 B 的 `public_key`，站点 B 的公钥填写在站点 A 的 `public_key`。
+
+---
+
+## 场景 A：单对端 tun-quic 纯直连
+
+最轻量场景：单对端 TUN 直接对接经认证的 QUIC Datagram，不封装 WireGuard，**不支持中继回退**。配置中恰好一个 `[peer]`，且必须禁用中继与 Stream 承载；IPv6 场景要求站点 MTU 不低于 1280。两端须同时升级到 v0.5.15 或更新版本；旧试用版（preview1–preview5）不互通。
+
+```toml
+# 站点 A（site-a.toml，站点 B 对称配置）
+schema_version = 1
+
+[site]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = false
+mtu = 1420
+data_plane = "tun-quic"
+
+[peer]
+id = "site-b"
+public_key = "REPLACE_WITH_PEER_PUBLIC_KEY"
+shared_secret = "REPLACE_WITH_PEER_SHARED_SECRET"
+allow_relay = false
+
+[p2p]
+data_transport = "datagram"
+```
+
+---
+
+## 场景 B：auto 自动切换 + 私有 Hub 明文
+
+推荐用于自有 Hub 集群：每个对端在直连、按配置顺序的私有 Hub 与公共 STCP 之间自动切换。`hub_unencrypted = true` 仅在两端都打开时生效，私有 Hub 承载不套 WireGuard 的 IP；公共 STCP 永远是 WireGuard。对端必须有中继路径：要么 `site.allow_relay && peer.allow_relay`，要么配置 `peer.private_relay.hubs`。切换节奏内置：连续 3 次无直连才回落；直连稳定 60 秒且距上次回落 5 分钟后才升回；更优先的 Hub 恢复后立即切回。运行中不能改 `data_plane` / `hub_unencrypted`，需先 `down` 再启动。
+
+```toml
+# Spoke 站点（site-a.toml）
+schema_version = 1
+
+[site]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+mtu = 1420
+data_plane = "auto"
+hub_unencrypted = true
+
+[peer]
+id = "site-hub-1"
+public_key = "REPLACE_WITH_HUB1_PUBLIC_KEY"
+shared_secret = "REPLACE_WITH_HUB1_SHARED_SECRET"
+allow_relay = true
+
+[peer.private_relay]
+hubs = ["site-hub-1", "site-hub-2"]
+key = "REPLACE_WITH_RELAY_KEY"
+
+# 纯 Hub 节点（被其他对端 hubs 引用、自身不配置中继/回落）不参与本站转发与路由。
+# Hub 的中继授权仍由 private_relay.pairs 提供；端点证明所需的 pair secret 由数据两端共享。
+```
+
+若与固定 `wg-quic` 模式或旧版本互通，`peer.ipv6.sync_port` 缺省值已从固定 51830 改为按站点对派生，需在两端显式配置同一可用端口，否则动态前缀同步不会生效（静态网段不受影响）。
