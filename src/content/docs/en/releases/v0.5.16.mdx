@@ -1,0 +1,78 @@
+---
+title: frp-tun v0.5.16
+description: 'Adds site.data_plane = "auto": each peer switches among direct QUIC, private Hub, and public STCP; private Hubs may carry unencrypted IP, and frp-tun pin pins a carrier per peer.'
+slug: en/releases/v0.5.16
+version: v0.5.16
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 22, 2026
+>
+> **Assets**: UPX-compressed binaries for five architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- **Automatic data plane**: Adds the site-level `site.data_plane = "auto"` setting. Each peer switches among a direct QUIC path, private Hubs in configured order, and public STCP: direct is preferred; after 3 consecutive failures with no usable direct path, traffic falls back; a direct path is promoted back only after it stays stable for 60 seconds and 5 minutes have passed since the last fallback; a higher-priority recovered Hub takes over immediately. The data plane or `site.hub_unencrypted` cannot be hot-switched at runtime; run `down` before starting again.
+- **Optional cleartext on private Hubs**: `site.hub_unencrypted` defaults to `false` and applies only to `auto` / `tun-quic`. When both ends enable it, private Hubs carry IP packets without a WireGuard layer while end-to-end authentication, sequence numbers, and the replay window are retained. If either end leaves it off, the same Hub carries WireGuard payloads. Public STCP always carries WireGuard.
+- **Pin the carrier per peer**: `frp-tun pin --peer <id> --target direct|relay|clear` pins a direct or relay carrier for one peer, bypassing failure thresholds and the promotion cooldown while still requiring the three-way handshake on both ends. `clear` releases the pin and keeps the current path. The command only writes the journal and starts negotiation; it neither waits for peer confirmation nor fails because a peer is offline.
+- **Mixed deployments and pure Hub nodes**: `auto` converges with fixed `wg-quic` onto a shared STCP relay; already authenticated legacy direct paths are used only for identification, not for application traffic. A peer referenced by other peers' `private_relay.hubs` that has no relay or fallback capability of its own is a pure Hub node and is excluded from this site's forwarding and routing plan; Hub authorization still comes from `private_relay.pairs`.
+- **Hardened IPv6 prefixes**: Dynamic prefix synchronization travels over the QUIC control stream on direct paths, SyncPort on WireGuard relays, and the authenticated negotiation channel on cleartext Hubs. Advertisements carry signed snapshot sequence numbers and lease ceilings; a late snapshot cannot revive a revoked prefix, and expiry revokes the data route. `peer.ipv6.sync_port` now defaults to a per-site-pair derivation; two `auto` peers exchange the actually bound port through signed signaling.
+- **Upgrade notice**: When interoperating with fixed-mode or older peers, both ends must explicitly configure the same available `sync_port` (older versions defaulted uniformly to 51830, while this version derives it per site pair); see upstream docs/compatibility.md §§6–7. Previously validated capabilities and conclusions from [v0.5.15](/en/releases/v0.5.15/) and earlier remain in effect.
+
+## Downloads
+
+The links below point to the official v0.5.16 GitHub Release on this site. SHA256 digests for all five architecture binaries are provided in the release `checksums.txt`; verify locally before deployment.
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.16_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.16/frp-tun_v0.5.16_amd64) |
+| Linux arm | `frp-tun_v0.5.16_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.16/frp-tun_v0.5.16_arm) |
+| Linux arm64 | `frp-tun_v0.5.16_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.16/frp-tun_v0.5.16_arm64) |
+| Linux mips | `frp-tun_v0.5.16_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.16/frp-tun_v0.5.16_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.16_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.16/frp-tun_v0.5.16_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.16/checksums.txt) |
+
+## Verification
+
+Download the required assets into one directory and run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its digest with the corresponding value below.
+
+```text
+762ef75ef8d775a01eb33b6fc70f597d8f0dff33365ae54e4ed5e1015b40b51e  frp-tun_v0.5.16_amd64
+228a25d88f297e610c273aa3b6ac5a9e5740bc4793bb0a280ac87ecff6e88632  frp-tun_v0.5.16_arm
+c6f7778be42fbb46a71cbc4ff931d1143627c48218beb026ca032be075d74089  frp-tun_v0.5.16_arm64
+5164e186e515a8fc398cdafc41cbbd585b35bc6f9ae02a2fc72308135d4f5949  frp-tun_v0.5.16_mips-softfloat
+6162c23f8cbad83df64ba1194a8aeab314817d87ba6a6418ee6209b00947338a  frp-tun_v0.5.16_mipsle-softfloat
+```
+
+## Validated scope
+
+- SHA256 digests for all five architecture binaries were verified against the upstream `checksums.txt`. The manifest digest is `a1b6776ce2d0963c3407c528ba1a479bff6dd2e7f4740eb708530f89264d38f4`.
+- Local loopback (stock frps v0.71.0) E2E tests all pass: dual-stack direct paths, cold STCP fallback, encrypted and cleartext private Hubs, fixed tun-quic Hub, dual-Hub failover and promotion back, journal write-failure restart recovery, `auto` × fixed WG bidirectional traffic (both dial roles), and concurrent three-site IPv6 prefix synchronization and revocation over WG/STCP.
+- The upstream post-tag fix `41287da` is covered by regression tests: in a dual-Hub scenario, a request to a broken Hub is released so the next hop can take over when switching back to the preferred Hub. The tag and published assets are unchanged.
+- `-race` is validated by upstream CI jobs; all 24 Go packages, `go vet`, and 87 Python workflow tests pass.
+- Resource targets are unchanged: 128MB RAM / 32MB Flash remains the support target. Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+
+## Known limitations
+
+- Automatic switching follows built-in failure thresholds and the cooldown; to pin a carrier immediately, use `frp-tun pin`, which still requires the three-way handshake on both ends.
+- The `auto` data plane or `hub_unencrypted` cannot be hot-switched at runtime; run `down` before starting again.
+- Nonzero `SO_MARK` policy routing and physical OpenWrt devices remain unverified. This release claims neither performance gains nor lower resource usage.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. To try `auto` or change `hub_unencrypted`, run `down` first and start only after the relay-path requirements are met. When interoperating with fixed-mode or older peers, both ends must explicitly configure the same available `sync_port`. See [Upgrade & rollback](/en/operations/upgrade-rollback/) and the [Configuration reference](/en/configuration/full-reference/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; when returning to the old default `sync_port`, both ends must change it back to 51830. Consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).
