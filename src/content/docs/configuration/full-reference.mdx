@@ -4,7 +4,7 @@ description: frp-tun 完整配置参数字典、默认值与生产脱敏模板�
 version: preview
 ---
 
-> **适用版本：技术预览（字段字典对齐 v0.5.15）。** 生产环境安全建议：配置文件权限请设为 `0600` (`chmod 600 config.toml`)，避免敏感凭据被本机非特权用户读取。
+> **适用版本：技术预览（字段字典对齐 v0.5.16）。** 生产环境安全建议：配置文件权限请设为 `0600` (`chmod 600 config.toml`)，避免敏感凭据被本机非特权用户读取。
 
 `frp-tun` 采用标准 TOML 格式进行配置。以下为全量字段字典说明与生产级脱敏模板：
 
@@ -21,6 +21,8 @@ tunnel_address = "198.51.100.1/32"    # 本端 WireGuard IPv4 点对点虚拟隧
 role = "proxy"                        # 角色: "proxy" (被动监听端/服务端) 或 "visitor" (主动发起端)
 allow_relay = true                    # 是否允许在 P2P 打洞失败时使用 STCP 中继兜底 (默认 true)
 mtu = 1420                            # WireGuard 接口 MTU (默认 1420，范围 576~9000，两端必须严格一致)
+# data_plane = "auto"                 # 数据面: "wg-quic"（默认）、"tun-quic"（单对端直连）或 "auto"（直连/私有 Hub/STCP 自动切换）
+# hub_unencrypted = false             # 仅 auto/tun-quic 生效，缺省 false；两端都打开时私有 Hub 承载不套 WireGuard 的 IP
 
 # 可选：IPv6 隧道与动态前缀同步配置 (Dual-Stack & Dynamic IPv6 Prefix)
 [site.ipv6]
@@ -58,7 +60,8 @@ public_key = "REPLACE_WITH_PEER_PUBLIC_KEY" # 对端 WireGuard 静态公钥 (Bas
 enabled = false
 tunnel_address = "2001:db8:1::2/128"
 accept_dynamic = false
-sync_port = 51830
+# sync_port = 51830                   # 隧道内动态前缀同步 UDP 端口；缺省按站点对确定性派生（旧版统一为 51830）。
+                                      # 双 auto 通过签名信令交换实际绑定端口；与固定模式/旧版本互通时两端需显式配置同一可用端口
 
 # ==============================================================================
 # 3. FRP 信令与服务端配置 (FRP Signaling & Underlay)

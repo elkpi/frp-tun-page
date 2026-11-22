@@ -198,7 +198,23 @@ frp-tun apply [-c /path/to/new_config.toml] [--socket /var/run/frp-tun.sock]
 
 ---
 
-### 2.9 down（停机并清理网络资源）
+### 2.9 pin（按对端钉住数据承载）
+
+按对端钉住直连或中继承载，跳过失败阈值和回切抑制期；仍需双方完成三次握手。目标未接通前该对端保持黑洞；`clear` 解除钉住并留在当前路径。命令只写 journal 并开始协商，不等待对端确认，也不因对端离线而失败。
+
+```bash
+frp-tun pin --peer site-remote --target direct
+frp-tun pin --peer site-remote --target relay
+frp-tun pin --peer site-remote --target clear
+```
+
+- `--peer <id>`: **必填**，目标对端站点 ID。
+- `--target <direct|relay|clear>`: **必填**，钉住的目标承载；`clear` 解除钉住。
+- `--socket <path>`: 控制套接字路径，默认为 `/var/run/frp-tun.sock`。
+
+---
+
+### 2.10 down（停机并清理网络资源）
 
 停止守护进程并**彻底清理**本站占用的全部网络资源（包括 WireGuard 虚拟接口、策略路由表、ip rule 优先级规则与隔离防护规则）。
 
@@ -213,7 +229,7 @@ frp-tun down [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 
 ---
 
-### 2.10 forget-prefix（注销退役 IPv6 前缀）
+### 2.11 forget-prefix（注销退役 IPv6 前缀）
 
 从持久化退役黑洞保护列表中注销指定的 IPv6 前缀，解除针对该网段的黑洞路由保护。
 
@@ -226,7 +242,7 @@ frp-tun forget-prefix --prefix <cidr> [--socket /var/run/frp-tun.sock]
 
 ---
 
-### 2.11 disable-ipv6（禁用 IPv6 保护）
+### 2.12 disable-ipv6（禁用 IPv6 保护）
 
 动态通知运行中实例彻底禁用 IPv6 相关的所有策略路由、黑洞保护与中继转发。
 
@@ -248,3 +264,15 @@ frp-tun disable-ipv6 [--socket /var/run/frp-tun.sock]
 | `2` | **Usage / Config Error** | 命令行参数缺失、选项非法，或配置文件语法校验失败。 |
 | `3` | **Prerequisite Failure** | 操作系统环境前置条件未满足（例如缺少 TUN 设备访问权限、策略路由产生严重冲突）。 |
 | `4` | **Runtime Failure** | 守护进程启动异常、核心组件初始化失败、控制套接字通信超时，或 journal 拒绝恢复。 |
+
+---
+
+## 4. auto 数据面（v0.5.16）
+
+`site.data_plane = "auto"` 让每个对端在直连（QUIC）、按配置顺序的私有 Hub 和公共 STCP 之间自动切换：直连优先，连续 3 次无可用直连后回落；直连稳定 60 秒且距上次回落超过 5 分钟后才升回；更优先的 Hub 恢复后立即切回。端口与 MTU 在启动时一次性配置，切换只更换承载，不重建接口或路由计划；识别与未提交期间该对端保持黑洞。
+
+- `site.hub_unencrypted = true` 且两端都打开时，私有 Hub 承载不套 WireGuard 的 IP，端到端认证、序号与重放窗口保留；任一端未打开仍走同一 Hub 的 WireGuard 载荷。公共 STCP 永远承载 WireGuard。
+- 纯 Hub 节点（被其他对端 `private_relay.hubs` 引用且自身无中继/回落能力）不参与本站转发与路由。
+- `peer.ipv6.sync_port` 缺省按站点对派生；双 `auto` 通过签名信令交换实际绑定端口。与固定模式或旧版本互通时，两端须显式配置同一可用端口。
+- 运行中不能热切换数据面或 `hub_unencrypted`；需先 `down` 再启动。
+- `status` 的 `plane_*` 字段按对端显示承载、载荷、Hub、钉住目标、连续失败次数与回切抑制剩余时间；`plane_forward` 仅在已落盘且承载接通时为真。
