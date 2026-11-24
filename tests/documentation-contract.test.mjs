@@ -95,6 +95,7 @@ test('all documentation pages have an English counterpart', () => {
     'en/releases/v0.5.14.mdx',
     'en/releases/v0.5.15.mdx',
     'en/releases/v0.5.16.mdx',
+    'en/releases/v0.5.17.mdx',
   ];
 
   for (const page of expectedEnglishPages) {
@@ -295,6 +296,57 @@ test('v0.5.16 release notes cover auto plane, explicit sync_port, and verificati
   assert.match(english, /November 22, 2026/);
   assert.match(english, /claims neither performance gains nor lower resource usage/);
   assert.match(english, /both ends.*explicitly.*sync_port/i);
+});
+
+test('v0.5.17 release notes document MTU negotiation, port drift, and verification boundaries', () => {
+  const chinesePath = path.join(root, 'src/content/docs/releases/v0.5.17.mdx');
+  const englishPath = path.join(root, 'src/content/docs/en/releases/v0.5.17.mdx');
+  assert.equal(existsSync(chinesePath), true, 'Chinese v0.5.17 release notes must exist');
+  assert.equal(existsSync(englishPath), true, 'English v0.5.17 release notes must exist');
+
+  const chinese = readFileSync(chinesePath, 'utf8');
+  const english = readFileSync(englishPath, 'utf8');
+  const digests = [
+    'be5593a269f2f0c5f722a4a8889e9589d8ec3910f3414063394edb54dd3fa82f',
+    '668d54744a99c3ab57cffb88784b68086dde6dc77441ad4101e0c5770b3b4562',
+    'fc5cf79ba27640e2db8d66b6771bda0d7e1418402587d680267485405b1a949d',
+    'de7fdbe2043ea81710934c03f9054888dc79202ee030fb1d69adeed861c4bcc1',
+    '5d094698833eee8f39b860c05977b9b97f7c7cc9f0883451c4a1f79289f6fc13',
+    '8252448531b2b23ec2b04f97d8d0e512dfba0531c49e6f2d6652d06eccfc8ce5',
+  ];
+  for (const content of [chinese, english]) {
+    assert.match(content, /^version: v0\.5\.17$/m);
+    assert.match(content, /^status: release$/m);
+    assert.match(content, /^published: true$/m);
+    assert.match(content, /effective_mtu/);
+    assert.match(content, /mtu_source/);
+    assert.match(content, /mtu_advertise/);
+    assert.match(content, /listen_port_drifts_24h/);
+    assert.match(content, /listen_port_range/);
+    assert.match(content, /1420/);
+    assert.match(content, /1360/);
+    assert.match(content, /1280/);
+    assert.match(content, /5 分钟|5 minutes/);
+    assert.match(content, /checksums\.txt/);
+    for (const digest of digests) {
+      assert.match(content, new RegExp(digest));
+    }
+    assert.match(content, /frp-tun-page\/releases\/download\/v0\.5\.17\//);
+    assert.match(content, /128MB RAM \/ 32MB Flash/);
+    assert.match(content, /64MB\/16MB/);
+  }
+  assert.match(chinese, /^slug: releases\/v0\.5\.17$/m);
+  assert.match(chinese, /2026 年 11 月 24 日/);
+  assert.match(chinese, /只降不升/);
+  assert.match(chinese, /网络完全不通/);
+  assert.match(chinese, /不宣称性能收益/);
+  assert.match(chinese, /真机端口封禁.*未验证/);
+  assert.match(english, /^slug: en\/releases\/v0\.5\.17$/m);
+  assert.match(english, /November 24, 2026/);
+  assert.match(english, /lower only/i);
+  assert.match(english, /no path confirmation/i);
+  assert.match(english, /claims neither performance gains/i);
+  assert.match(english, /real-device port blocking.*not verified/i);
 });
 
 test('current release links point to v0.5.16 in both locales', () => {

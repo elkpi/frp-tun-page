@@ -1,0 +1,77 @@
+---
+title: frp-tun v0.5.17
+description: '新增双端隧道 MTU 协商与 p2p.listen_port_range 直连端口漂移；协商只降不升且热更新不断流，漂移仅在直连持续失败后发生。'
+slug: releases/v0.5.17
+version: v0.5.17
+status: release
+published: true
+---
+
+> **正式发布版本**
+>
+> **发布日期**：2026 年 11 月 24 日
+>
+> **发布文件**：五种架构的 UPX 二进制与校验和文件
+>
+> **使用许可**：遵循[最终用户许可协议 (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)
+
+## 摘要
+
+- **双端隧道 MTU 协商**：两端均为 v0.5.17 时，直连建立后在已认证控制流上交换通告值。生效值取两端通告与当前路径折算上限的较小者，**只降不升**，下限 1280；结果经 netlink 热更新（用户态 WireGuard 走 `tun_event`），不重建接口、不断流。5 分钟内的新结果先记录，到期应用最新值；协商值与路径切换都会触发重算。网络完全不通时没有路径确认，不会自动降 MTU。
+- **直连监听端口范围漂移**：新增 `p2p.listen_port_range = "start-end"`，缺省为空、端口固定。配置后仅在直连连续失败至少 3 次、持续至少 60 秒，且再完成一次失败重试后才漂移；连接稳定期间不漂移，也没有定时轮换。两次漂移至少间隔 30 分钟，24 小时最多 5 次，计数写入 journal、重启不清零；portmapper（UPnP/PCP）映射活跃时禁用，旧端口保留 120 秒。范围不能与 `listen_port`、对端监听端口或 IPv6 `sync_port` 重叠；`manage_firewall = true` 时一次放行固定端口与整个范围。
+- **单边调整与协商的关系**：`p2p.mtu_adjust` 仍只有 `suggest`（默认）、`auto`、`off`。对端支持协商时协商结果优先，单边调整让位；`off` 只关闭单边调整，不会关闭协商。网络完全不通时没有路径确认，单边 `auto` 也不会自动降 MTU。
+- **配置口径**：同一份配置中 `site` 段的 `mtu` 必须等于 `peer` 段的 `mtu`，未配置时默认 1420；两台机器可以配置不同的 MTU（例如 1420 与 1360），协商后两端接口都使用较小值。
+- **可观测性**：`frp-tun status` 新增 `effective_mtu`（当前生效值）、`mtu_source`（`negotiated` 或 `config`）、`mtu_advertise`（本端通告值）、`listen_port_drifts_24h`（24 小时内已成功漂移的次数，不是开关）。`Peers` 数组中的 `ListenPort` 与 `Supervisor` 的 `LocalEndpoint` 是活动会话的实际端口；无活动会话时 `ListenPort` 回退到配置端口。
+- **互通提示**：旧版本对端静默忽略协商消息，本端回退到原有单边 `mtu_adjust` 语义；与固定模式或旧版本互通时，`peer` 段的 `ipv6.sync_port` 仍需两端显式配置同一可用端口。[v0.5.16](/releases/v0.5.16/) 及更早版本已验证的能力和结论继续有效。
+
+## 下载与二进制资产
+
+以下链接指向官网 v0.5.17 GitHub Release。五种架构二进制均已按同一 Release 的 `checksums.txt` 提供 SHA256 摘要，部署前请在本地完成校验。
+
+| 架构 | 文件 | 下载 |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.17_amd64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_amd64) |
+| Linux arm | `frp-tun_v0.5.17_arm` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_arm) |
+| Linux arm64 | `frp-tun_v0.5.17_arm64` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_arm64) |
+| Linux mips | `frp-tun_v0.5.17_mips-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.17_mipsle-softfloat` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_mipsle-softfloat) |
+| 校验清单 | `checksums.txt` | [下载](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/checksums.txt) |
+
+## 验证
+
+将所需资产下载到同一目录后运行 `sha256sum -c checksums.txt`。如只下载单个架构，请将该文件的摘要与下表对应值比较。
+
+```text
+668d54744a99c3ab57cffb88784b68086dde6dc77441ad4101e0c5770b3b4562  frp-tun_v0.5.17_amd64
+fc5cf79ba27640e2db8d66b6771bda0d7e1418402587d680267485405b1a949d  frp-tun_v0.5.17_arm
+de7fdbe2043ea81710934c03f9054888dc79202ee030fb1d69adeed861c4bcc1  frp-tun_v0.5.17_arm64
+5d094698833eee8f39b860c05977b9b97f7c7cc9f0883451c4a1f79289f6fc13  frp-tun_v0.5.17_mips-softfloat
+8252448531b2b23ec2b04f97d8d0e512dfba0531c49e6f2d6652d06eccfc8ce5  frp-tun_v0.5.17_mipsle-softfloat
+```
+
+## 已验证范围
+
+- 五种架构发行二进制已下载并逐项通过 `sha256sum -c checksums.txt`，且与上游 Release 资产摘要一致；`checksums.txt` 自身摘要为 `be5593a269f2f0c5f722a4a8889e9589d8ec3910f3414063394edb54dd3fa82f`。
+- 上游 CI 的 race 单元测试、环回集成测试，以及 amd64、arm64、arm、mips、mipsle 五架构交叉构建通过。
+- 原版 frps v0.71.0 环回验证：双端 1360/1280 协商到 1280 后业务收包，以及 auto 直连、Hub 回切和多对端 IPv6 转发；MTU 冷却/折算、端口漂移触发与限频由单元和双引擎环回测试覆盖。
+- 资源目标未改变：128MB RAM / 32MB Flash 仍是支持目标；64MB/16MB 仍为压力评估档，非支持声明。
+
+## 已知限制
+
+- 双端协商只降不升；网络完全不通时没有路径确认，不会自动降低 MTU。`off` 只关闭单边调整，不关闭协商。
+- 端口漂移只由直连持续失败触发，连接稳定期间不漂移；旧端口保留 120 秒，已建立连接不迁移，由路径恢复自然收敛。`listen_port_drifts_24h` 只是 24 小时内的成功漂移次数，不是启用开关。
+- 真机端口封禁、非零 `SO_MARK` 策略路由和 OpenWrt 硬件尚未验证；本版不宣称性能收益或更低的资源占用。
+- 交叉编译资产不构成特定硬件、持续高负载、非零 `SO_MARK` 或复杂 NAT 场景的兼容性保证。
+- 软件不提供自动更新或可用性 SLA；请参阅 [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md)。
+
+## 升级
+
+在维护窗口备份现有配置和旧版二进制，确认独立回退路径。下载匹配架构的二进制并核对摘要后，停止服务、替换二进制并重启，再运行 `frp-tun doctor` 检查状态。已有启用 journal 时，重启恢复已提交配置；需要更改配置时使用 `frp-tun apply`。如需试用双端协商，两端都升级到 v0.5.17；旧版对端不支持时自动回退单边 `mtu_adjust`。配置漂移范围前确认不与 `listen_port`、对端监听端口或 IPv6 `sync_port` 重叠。详见[升级与回退](/operations/upgrade-rollback/)及[配置参考](/configuration/full-reference/)。
+
+## 回退
+
+停止服务，恢复备份的旧版二进制，再启动并检查状态。配置回退和二进制回退并非同一操作；与固定模式或旧版本互通时，两端仍需显式配置相同的可用 `sync_port`，操作前请核对目标旧版的发行说明及其 journal 行为。
+
+## 撤回
+
+如发现重大安全或稳定性问题，维护者将在公开 Release 页面标记撤回，并按 [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md) 发布通告。
