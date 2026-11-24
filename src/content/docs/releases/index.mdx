@@ -1,12 +1,13 @@
 ---
 title: 发行说明与版本历史
 description: frp-tun 正式版本资产、SHA256 校验和、升级回退指南与验证证据。
-version: v0.5.16
+version: v0.5.17
 ---
 
 在此查阅 `frp-tun` 历次公开发行版本的二进制下载地址、SHA256 校验清单与验证记录：
 
-- [v0.5.16 (当前稳定版本)](/releases/v0.5.16/)：新增 `site.data_plane = "auto"`，每个对端在直连、私有 Hub 与公共 STCP 之间自动切换；私有 Hub 可选不套 WireGuard，`frp-tun pin` 可按对端钉住承载。与固定模式或旧版本互通时两端须显式配置相同的可用 `sync_port`；本地环回 E2E 通过，不宣称性能收益或真机支持。
+- [v0.5.17 (当前稳定版本)](/releases/v0.5.17/)：新增双端隧道 MTU 协商（只降不升、热更新不断流、5 分钟冷却）与 `p2p.listen_port_range` 直连端口漂移（仅持续失败触发、24 小时最多 5 次）；`status` 增加生效 MTU 与漂移计数。两端都升级到 v0.5.17 才有协商，旧版回退单边 `mtu_adjust`；CI 与本地环回 E2E 通过，真机端口封禁、非零 `SO_MARK` 和 OpenWrt 未验证，不宣称性能收益。
+- [v0.5.16](/releases/v0.5.16/)：新增 `site.data_plane = "auto"`，每个对端在直连、私有 Hub 与公共 STCP 之间自动切换；私有 Hub 可选不套 WireGuard，`frp-tun pin` 可按对端钉住承载。与固定模式或旧版本互通时两端须显式配置相同的可用 `sync_port`；本地环回 E2E 通过，不宣称性能收益或真机支持。
 - [v0.5.15](/releases/v0.5.15/)：新增 `site.data_plane = "tun-quic"`，单对端 TUN 直接对接经认证的 QUIC Datagram，默认数据面仍为 `wg-quic`；动态 IPv6 前缀经活动控制流同步，并修复停用 journal 后的启动问题。两端须同时升级到 v0.5.15 才能互通。
 - [v0.5.14](/releases/v0.5.14/)：用户态 WireGuard 与数据泵之间的密文改为进程内按 peer 队列交接；内核模式保持 UDP，进程内设备状态端口、日志与关停行为修正，夹具对照 CPU 改善未证明默认路径通过生产接线样本门槛。
 - [v0.5.13](/releases/v0.5.13/)：用户态 WireGuard 与真实 QUIC 双端链路归因；接收方向 1400B 的 CPU 改善 9.42%，未达 10% 门槛，生产默认仍为批量接收。

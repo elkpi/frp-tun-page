@@ -4,7 +4,7 @@ description: frp-tun 完整配置参数字典、默认值与生产脱敏模板�
 version: preview
 ---
 
-> **适用版本：技术预览（字段字典对齐 v0.5.16）。** 生产环境安全建议：配置文件权限请设为 `0600` (`chmod 600 config.toml`)，避免敏感凭据被本机非特权用户读取。
+> **适用版本：技术预览（字段字典对齐 v0.5.17）。** 生产环境安全建议：配置文件权限请设为 `0600` (`chmod 600 config.toml`)，避免敏感凭据被本机非特权用户读取。
 
 `frp-tun` 采用标准 TOML 格式进行配置。以下为全量字段字典说明与生产级脱敏模板：
 
@@ -20,7 +20,7 @@ networks = ["198.51.100.0/24"]        # 本端局域网网段 (CIDR 列表，用
 tunnel_address = "198.51.100.1/32"    # 本端 WireGuard IPv4 点对点虚拟隧道地址 (必填)
 role = "proxy"                        # 角色: "proxy" (被动监听端/服务端) 或 "visitor" (主动发起端)
 allow_relay = true                    # 是否允许在 P2P 打洞失败时使用 STCP 中继兜底 (默认 true)
-mtu = 1420                            # WireGuard 接口 MTU (默认 1420，范围 576~9000，两端必须严格一致)
+mtu = 1420                            # WireGuard 接口 MTU (默认 1420，范围 576~9000；同一配置内须等于 peer 段的 mtu，两台机器可不同并协商取较小值)
 # data_plane = "auto"                 # 数据面: "wg-quic"（默认）、"tun-quic"（单对端直连）或 "auto"（直连/私有 Hub/STCP 自动切换）
 # hub_unencrypted = false             # 仅 auto/tun-quic 生效，缺省 false；两端都打开时私有 Hub 承载不套 WireGuard 的 IP
 
@@ -43,7 +43,7 @@ networks = ["198.51.200.0/24"]        # 对端局域网网段 (本端将自动�
 tunnel_address = "198.51.100.2/32"    # 对端 WireGuard IPv4 虚拟隧道地址 (必填)
 role = "visitor"                      # 对端角色: 必须与本端互补 (本端 proxy 则对端 visitor，反之亦然)
 allow_relay = true                    # 对端是否允许中继兜底 (默认 true)
-mtu = 1420                            # 对端 MTU (范围 576~9000，两端必须严格一致)
+mtu = 1420                            # 对端 MTU (范围 576~9000；同一配置内须等于 site 段的 mtu，两台机器可配置不同 MTU)
 public_key = "REPLACE_WITH_PEER_PUBLIC_KEY" # 对端 WireGuard 静态公钥 (Base64)
 # listen_port = 51822                 # 可选：对端公网 UDP 监听端口 (省略时自动 = p2p.listen_port + 对端序号，多对端不得重复)
 # shared_secret = "REPLACE_WITH_PEER_SHARED_SECRET" # 可选：本对端独立 P2P 预共享密钥 (省略时回退 frp.shared_secret)
@@ -107,6 +107,9 @@ mode = "nftables"                     # 防火墙管理模式: "nftables" (默�
 [p2p]
 prefer_family = "ipv4"                # 直连优先级: "ipv4" (默认) 或 "ipv6"
 listen_port = 51821                   # 固定公网 UDP 监听端口 (默认 51821)
+# listen_port_range = "53000-53999"    # 可选直连端口漂移范围 (缺省为空，端口固定；仅直连持续失败后漂移，稳定连接不漂移)
+                                      # 间隔至少 30 分钟、24 小时最多 5 次，计数写 journal；portmapper 活跃时禁用，旧端口保留 120 秒
+                                      # 不能与 listen_port、对端监听端口或 IPv6 sync_port 重叠；manage_firewall=true 时一次放行整个范围
 manage_firewall = false               # 是否授权自动管理公网入站规则
 data_transport = "auto"               # 直连数据面: "auto" (默认，QUIC Datagram，自动与旧版 Stream 对端协商互通) 或 "stream" (强制 Stream，兼容 v0.4.2)
 nathole_coordinator = "frp"           # NAT 打洞首选协调机制: "frp" (默认，经 frps 信令协调) 或 "native" (本地 QUIC 直连引擎)；另一机制自动作为兜底阶段
@@ -121,7 +124,7 @@ port_mapping = true                   # 网关端口映射 (UPnP/PCP) 自动发�
 quic_keepalive_period = "10s"         # P2P QUIC 心跳保活周期 (默认 10s，范围 [0s,10m]；显式 "0s" 停用；旧键 keepalive_period 仍被接受)
 accept_grace_after_failed_punch = "6s" # 打洞完全未命中后仍接收对端迟到拨入的宽限期 (默认 6s，范围 (0s,60s]；旧键 accept_grace 仍被接受)
 family_standby = false                # 是否开启双栈温热备用
-mtu_adjust = "suggest"                # 隧道 MTU 调整 (v0.5.7 起): "suggest" (默认，只记录建议), "auto" (稳定偏离后受控 apply), "off" (不观察)。关键边界见下方说明
+mtu_adjust = "suggest"                # 单边隧道 MTU 调整 (v0.5.7 起): "suggest" (默认，只记录建议), "auto" (稳定偏离后受控 apply), "off" (不观察)；对端支持双端协商时协商优先，off 只关闭单边调整
 
 # 可选：多路径 QoS 测速与动态选路
 [p2p.qos]
@@ -169,6 +172,9 @@ disable_print_color = false          # 关闭控制台着色 (默认 false；仅
   - `auto`：走与手动 `frp-tun apply` 相同的受控提交（journal、失败回滚、重建）。两次自动调整至少间隔 30 分钟；会话切换后这段冷却仍保留。它改的是运行配置和 journal。已经有启用 journal 时，重启恢复的是这次提交，不是配置文件里的旧 `mtu`。
   - `off`：不观察，也不动作。
   - 会话或路径切换会清掉尚未满 10 分钟的观察，并清掉 `suggest` 的同值去重。新路径必须重新观察满 10 分钟。
+  - v0.5.17 起，两端都支持双端 MTU 协商时，协商结果优先于以上单边调整；`off` 只关闭单边观察，不关闭协商。
+- **双端 MTU 协商（v0.5.17）**：直连建立后，两端在已认证控制流上交换通告值。生效 MTU 取两端通告与当前路径折算上限的较小者，只降不升，下限 1280，热更新接口、不重建、不断流；5 分钟冷却内的新结果先记录，到期应用最新值。同一配置内 `site` 与 `peer` 段的 `mtu` 必须相等，两台机器可以不同（例如 1420 与 1360），协商后两端接口都用较小值；网络完全不通时没有路径确认，不会自动降 MTU。`status` 可查看 `effective_mtu`、`mtu_source`（`negotiated` 或 `config`）、`mtu_advertise` 和 `suggested_mtu`。
+- **直连端口漂移范围（v0.5.17）**：`p2p.listen_port_range` 缺省为空、端口固定。配置后仅在直连连续失败至少 3 次、持续至少 60 秒并再失败一次后漂移；稳定连接不漂移。两次至少间隔 30 分钟、24 小时最多 5 次，计数进 journal 且跨重启保留；portmapper 活跃时禁用，旧端口保留 120 秒。范围不能与 `listen_port`、对端监听端口或 IPv6 `sync_port` 重叠；`manage_firewall = true` 时一次放行整个范围。`status` 的 `listen_port_drifts_24h` 只是 24 小时内已成功漂移的次数，不是开关。
 - **控制台着色**：`log.disable_print_color` 默认 `false`。设为 `true` 时，控制台日志不再着色。只在日志去向为 `console` 时有意义；写入文件的日志本来就不着色。
 
 ## 内置 STUN 目标与外连披露

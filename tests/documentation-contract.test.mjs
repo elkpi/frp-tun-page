@@ -349,14 +349,14 @@ test('v0.5.17 release notes document MTU negotiation, port drift, and verificati
   assert.match(english, /real-device port blocking.*not verified/i);
 });
 
-test('current release links point to v0.5.16 in both locales', () => {
+test('current release links point to v0.5.17 in both locales', () => {
   const pages = [
-    ['index.mdx', '/releases/v0.5.16/'],
-    ['en/index.mdx', '/en/releases/v0.5.16/'],
-    ['releases/index.mdx', '/releases/v0.5.16/'],
-    ['en/releases/index.mdx', '/en/releases/v0.5.16/'],
-    ['configuration/openwrt.mdx', '/releases/v0.5.16/'],
-    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.16/'],
+    ['index.mdx', '/releases/v0.5.17/'],
+    ['en/index.mdx', '/en/releases/v0.5.17/'],
+    ['releases/index.mdx', '/releases/v0.5.17/'],
+    ['en/releases/index.mdx', '/en/releases/v0.5.17/'],
+    ['configuration/openwrt.mdx', '/releases/v0.5.17/'],
+    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.17/'],
   ];
 
   for (const [page, currentReleasePath] of pages) {
@@ -364,17 +364,45 @@ test('current release links point to v0.5.16 in both locales', () => {
     assert.match(content, new RegExp(currentReleasePath.replaceAll('/', '\\/')),
       `${page} must link to ${currentReleasePath}`);
     if (page.endsWith('configuration/openwrt.mdx')) {
-      assert.match(content, /frp-tun_v0\.5\.16_/,
-        `${page} must use v0.5.16 binary names`);
+      assert.match(content, /frp-tun_v0\.5\.17_/,
+        `${page} must use v0.5.17 binary names`);
     }
   }
 
   const chineseIndex = readFileSync(path.join(root, 'src/content/docs/releases/index.mdx'), 'utf8');
   const englishIndex = readFileSync(path.join(root, 'src/content/docs/en/releases/index.mdx'), 'utf8');
-  assert.match(chineseIndex, /v0\.5\.16 \(当前稳定版本\)/);
-  assert.match(englishIndex, /v0\.5\.16 \(Current Stable Release\)/);
-  assert.doesNotMatch(chineseIndex, /v0\.5\.15 \(当前稳定版本\)/);
-  assert.doesNotMatch(englishIndex, /v0\.5\.15 \(Current Stable Release\)/);
+  assert.match(chineseIndex, /v0\.5\.17 \(当前稳定版本\)/);
+  assert.match(englishIndex, /v0\.5\.17 \(Current Stable Release\)/);
+  assert.doesNotMatch(chineseIndex, /v0\.5\.16 \(当前稳定版本\)/);
+  assert.doesNotMatch(englishIndex, /v0\.5\.16 \(Current Stable Release\)/);
+});
+
+test('v0.5.17 example, fields, and status observability are documented in both locales', () => {
+  for (const page of ['configuration/full-reference.mdx', 'en/configuration/full-reference.mdx']) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    assert.match(content, /listen_port_range = "53000-53999"/, `${page} must show the drift range`);
+    assert.match(content, /mtu = 1420/, `${page} must show the MTU default`);
+    assert.match(content, /协商.*优先|negotiation.*takes precedence/i, `${page} must state negotiation precedence`);
+    assert.match(content, /30 分钟|30 minutes/, `${page} must state the drift interval`);
+    assert.match(content, /24 小时.*5 次|five.*24 hours|24 hours.*five/i, `${page} must state the 24-hour cap`);
+  }
+
+  for (const page of ['configuration/minimal-two-site.mdx', 'en/configuration/minimal-two-site.mdx']) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    assert.match(content, /mtu = 1420/, `${page} must show site A MTU 1420`);
+    assert.match(content, /mtu = 1360/, `${page} must show site B MTU 1360`);
+    assert.match(content, /listen_port_range = "53000-53999"/, `${page} must show the optional drift range`);
+    assert.match(content, /120 秒|120 seconds/, `${page} must state the old-port retention`);
+  }
+
+  for (const page of ['operations/cli-reference.mdx', 'en/operations/cli-reference.mdx']) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    for (const field of ['effective_mtu', 'mtu_source', 'mtu_advertise', 'suggested_mtu', 'listen_port_drifts_24h', 'ListenPort', 'LocalEndpoint']) {
+      assert.match(content, new RegExp(field), `${page} must document ${field}`);
+    }
+    assert.match(content, /活动会话.*实际|actual port.*active session/i, `${page} must state that ports come from the active session`);
+    assert.match(content, /无活动会话.*回退|falls back to the configured port/i, `${page} must state the configured-port fallback`);
+  }
 });
 
 test('v0.5.16 auto plane and pin are documented in both locales', () => {

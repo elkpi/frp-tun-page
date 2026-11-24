@@ -156,3 +156,93 @@ key = "REPLACE_WITH_RELAY_KEY"
 ```
 
 若与固定 `wg-quic` 模式或旧版本互通，`peer.ipv6.sync_port` 缺省值已从固定 51830 改为按站点对派生，需在两端显式配置同一可用端口，否则动态前缀同步不会生效（静态网段不受影响）。
+
+---
+
+## 场景 C：双端 MTU 协商与可选直连端口漂移（v0.5.17）
+
+两端都升级到 v0.5.17 时，直连建立后自动协商隧道 MTU。同一份配置内 `site` 段与 `peer` 段的 `mtu` 必须相等；两台机器可以配置不同值。下例站点 A 配 1420、站点 B 配 1360，协商后两端接口都使用 1360。未配置时默认为 1420。
+
+```toml
+# 站点 A（site-a.toml）
+schema_version = 1
+
+[site]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+mtu = 1420
+
+[peer]
+id = "site-b"
+networks = ["198.51.200.0/24"]
+tunnel_address = "198.51.100.2/32"
+role = "visitor"
+allow_relay = true
+mtu = 1420
+public_key = "REPLACE_WITH_SITE_B_PUBLIC_KEY"
+
+[frp]
+server_addr = "relay.example.com"
+server_port = 7000
+token = "REPLACE_WITH_FRP_TOKEN"
+shared_secret = "REPLACE_WITH_SHARED_SECRET"
+tls = true
+
+[wireguard]
+mode = "auto"
+private_key = "REPLACE_WITH_SITE_A_PRIVATE_KEY"
+
+[forwarding]
+authorize_enable = true
+mode = "nftables"
+
+[p2p]
+# 可选：缺省为空则端口固定。仅在直连连续失败至少 3 次、持续至少 60 秒并再失败一次后漂移；
+# 稳定连接不漂移；两次至少间隔 30 分钟、24 小时最多 5 次；portmapper 活跃时禁用；旧端口保留 120 秒。
+listen_port_range = "53000-53999"
+```
+
+```toml
+# 站点 B（site-b.toml）
+schema_version = 1
+
+[site]
+id = "site-b"
+networks = ["198.51.200.0/24"]
+tunnel_address = "198.51.100.2/32"
+role = "visitor"
+allow_relay = true
+mtu = 1360
+
+[peer]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+mtu = 1360
+public_key = "REPLACE_WITH_SITE_A_PUBLIC_KEY"
+
+[frp]
+server_addr = "relay.example.com"
+server_port = 7000
+token = "REPLACE_WITH_FRP_TOKEN"
+shared_secret = "REPLACE_WITH_SHARED_SECRET"
+tls = true
+
+[wireguard]
+mode = "auto"
+private_key = "REPLACE_WITH_SITE_B_PRIVATE_KEY"
+
+[forwarding]
+authorize_enable = true
+mode = "nftables"
+
+[p2p]
+# 端口漂移范围可选；这里保持默认的固定端口。
+```
+
+`p2p.mtu_adjust` 仍只有 `suggest`（默认）、`auto`、`off`：对端支持协商时协商优先，`off` 只关闭单边调整。协商只降不升，5 分钟冷却，热更新接口、不断流；网络完全不通时没有路径确认，不会自动降 MTU。`listen_port_range` 不能与 `listen_port`、对端监听端口或 IPv6 `sync_port` 重叠；`manage_firewall = true` 时一次放行固定端口和整个范围。`frp-tun status` 的 `listen_port_drifts_24h` 只是 24 小时内已成功漂移的次数，不是开关。
