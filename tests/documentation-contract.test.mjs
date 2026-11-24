@@ -95,6 +95,7 @@ test('all documentation pages have an English counterpart', () => {
     'en/releases/v0.5.14.mdx',
     'en/releases/v0.5.15.mdx',
     'en/releases/v0.5.16.mdx',
+    'en/releases/v0.5.17.mdx',
   ];
 
   for (const page of expectedEnglishPages) {
@@ -297,14 +298,65 @@ test('v0.5.16 release notes cover auto plane, explicit sync_port, and verificati
   assert.match(english, /both ends.*explicitly.*sync_port/i);
 });
 
-test('current release links point to v0.5.16 in both locales', () => {
+test('v0.5.17 release notes document MTU negotiation, port drift, and verification boundaries', () => {
+  const chinesePath = path.join(root, 'src/content/docs/releases/v0.5.17.mdx');
+  const englishPath = path.join(root, 'src/content/docs/en/releases/v0.5.17.mdx');
+  assert.equal(existsSync(chinesePath), true, 'Chinese v0.5.17 release notes must exist');
+  assert.equal(existsSync(englishPath), true, 'English v0.5.17 release notes must exist');
+
+  const chinese = readFileSync(chinesePath, 'utf8');
+  const english = readFileSync(englishPath, 'utf8');
+  const digests = [
+    'be5593a269f2f0c5f722a4a8889e9589d8ec3910f3414063394edb54dd3fa82f',
+    '668d54744a99c3ab57cffb88784b68086dde6dc77441ad4101e0c5770b3b4562',
+    'fc5cf79ba27640e2db8d66b6771bda0d7e1418402587d680267485405b1a949d',
+    'de7fdbe2043ea81710934c03f9054888dc79202ee030fb1d69adeed861c4bcc1',
+    '5d094698833eee8f39b860c05977b9b97f7c7cc9f0883451c4a1f79289f6fc13',
+    '8252448531b2b23ec2b04f97d8d0e512dfba0531c49e6f2d6652d06eccfc8ce5',
+  ];
+  for (const content of [chinese, english]) {
+    assert.match(content, /^version: v0\.5\.17$/m);
+    assert.match(content, /^status: release$/m);
+    assert.match(content, /^published: true$/m);
+    assert.match(content, /effective_mtu/);
+    assert.match(content, /mtu_source/);
+    assert.match(content, /mtu_advertise/);
+    assert.match(content, /listen_port_drifts_24h/);
+    assert.match(content, /listen_port_range/);
+    assert.match(content, /1420/);
+    assert.match(content, /1360/);
+    assert.match(content, /1280/);
+    assert.match(content, /5 分钟|5 minutes/);
+    assert.match(content, /checksums\.txt/);
+    for (const digest of digests) {
+      assert.match(content, new RegExp(digest));
+    }
+    assert.match(content, /frp-tun-page\/releases\/download\/v0\.5\.17\//);
+    assert.match(content, /128MB RAM \/ 32MB Flash/);
+    assert.match(content, /64MB\/16MB/);
+  }
+  assert.match(chinese, /^slug: releases\/v0\.5\.17$/m);
+  assert.match(chinese, /2026 年 11 月 24 日/);
+  assert.match(chinese, /只降不升/);
+  assert.match(chinese, /网络完全不通/);
+  assert.match(chinese, /不宣称性能收益/);
+  assert.match(chinese, /真机端口封禁.*未验证/);
+  assert.match(english, /^slug: en\/releases\/v0\.5\.17$/m);
+  assert.match(english, /November 24, 2026/);
+  assert.match(english, /lower only/i);
+  assert.match(english, /no path confirmation/i);
+  assert.match(english, /claims neither performance gains/i);
+  assert.match(english, /real-device port blocking.*not verified/i);
+});
+
+test('current release links point to v0.5.17 in both locales', () => {
   const pages = [
-    ['index.mdx', '/releases/v0.5.16/'],
-    ['en/index.mdx', '/en/releases/v0.5.16/'],
-    ['releases/index.mdx', '/releases/v0.5.16/'],
-    ['en/releases/index.mdx', '/en/releases/v0.5.16/'],
-    ['configuration/openwrt.mdx', '/releases/v0.5.16/'],
-    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.16/'],
+    ['index.mdx', '/releases/v0.5.17/'],
+    ['en/index.mdx', '/en/releases/v0.5.17/'],
+    ['releases/index.mdx', '/releases/v0.5.17/'],
+    ['en/releases/index.mdx', '/en/releases/v0.5.17/'],
+    ['configuration/openwrt.mdx', '/releases/v0.5.17/'],
+    ['en/configuration/openwrt.mdx', '/en/releases/v0.5.17/'],
   ];
 
   for (const [page, currentReleasePath] of pages) {
@@ -312,17 +364,45 @@ test('current release links point to v0.5.16 in both locales', () => {
     assert.match(content, new RegExp(currentReleasePath.replaceAll('/', '\\/')),
       `${page} must link to ${currentReleasePath}`);
     if (page.endsWith('configuration/openwrt.mdx')) {
-      assert.match(content, /frp-tun_v0\.5\.16_/,
-        `${page} must use v0.5.16 binary names`);
+      assert.match(content, /frp-tun_v0\.5\.17_/,
+        `${page} must use v0.5.17 binary names`);
     }
   }
 
   const chineseIndex = readFileSync(path.join(root, 'src/content/docs/releases/index.mdx'), 'utf8');
   const englishIndex = readFileSync(path.join(root, 'src/content/docs/en/releases/index.mdx'), 'utf8');
-  assert.match(chineseIndex, /v0\.5\.16 \(当前稳定版本\)/);
-  assert.match(englishIndex, /v0\.5\.16 \(Current Stable Release\)/);
-  assert.doesNotMatch(chineseIndex, /v0\.5\.15 \(当前稳定版本\)/);
-  assert.doesNotMatch(englishIndex, /v0\.5\.15 \(Current Stable Release\)/);
+  assert.match(chineseIndex, /v0\.5\.17 \(当前稳定版本\)/);
+  assert.match(englishIndex, /v0\.5\.17 \(Current Stable Release\)/);
+  assert.doesNotMatch(chineseIndex, /v0\.5\.16 \(当前稳定版本\)/);
+  assert.doesNotMatch(englishIndex, /v0\.5\.16 \(Current Stable Release\)/);
+});
+
+test('v0.5.17 example, fields, and status observability are documented in both locales', () => {
+  for (const page of ['configuration/full-reference.mdx', 'en/configuration/full-reference.mdx']) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    assert.match(content, /listen_port_range = "53000-53999"/, `${page} must show the drift range`);
+    assert.match(content, /mtu = 1420/, `${page} must show the MTU default`);
+    assert.match(content, /协商.*优先|negotiation.*takes precedence/i, `${page} must state negotiation precedence`);
+    assert.match(content, /30 分钟|30 minutes/, `${page} must state the drift interval`);
+    assert.match(content, /24 小时.*5 次|five.*24 hours|24 hours.*five/i, `${page} must state the 24-hour cap`);
+  }
+
+  for (const page of ['configuration/minimal-two-site.mdx', 'en/configuration/minimal-two-site.mdx']) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    assert.match(content, /mtu = 1420/, `${page} must show site A MTU 1420`);
+    assert.match(content, /mtu = 1360/, `${page} must show site B MTU 1360`);
+    assert.match(content, /listen_port_range = "53000-53999"/, `${page} must show the optional drift range`);
+    assert.match(content, /120 秒|120 seconds/, `${page} must state the old-port retention`);
+  }
+
+  for (const page of ['operations/cli-reference.mdx', 'en/operations/cli-reference.mdx']) {
+    const content = readFileSync(path.join(root, 'src/content/docs', page), 'utf8');
+    for (const field of ['effective_mtu', 'mtu_source', 'mtu_advertise', 'suggested_mtu', 'listen_port_drifts_24h', 'ListenPort', 'LocalEndpoint']) {
+      assert.match(content, new RegExp(field), `${page} must document ${field}`);
+    }
+    assert.match(content, /活动会话.*实际|actual port.*active session/i, `${page} must state that ports come from the active session`);
+    assert.match(content, /无活动会话.*回退|falls back to the configured port/i, `${page} must state the configured-port fallback`);
+  }
 });
 
 test('v0.5.16 auto plane and pin are documented in both locales', () => {

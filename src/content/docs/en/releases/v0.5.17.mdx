@@ -1,0 +1,77 @@
+---
+title: frp-tun v0.5.17
+description: 'Adds two-end tunnel MTU negotiation and p2p.listen_port_range direct port drift; negotiation only lowers MTU and hot-applies without interruption, while drift happens only after sustained direct-path failures.'
+slug: en/releases/v0.5.17
+version: v0.5.17
+status: release
+published: true
+---
+
+> **Official release**
+>
+> **Release date**: November 24, 2026
+>
+> **Assets**: UPX-compressed binaries for five architectures and checksum manifest
+>
+> **License**: See the [End User License Agreement (EULA)](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Summary
+
+- **Two-end tunnel MTU negotiation**: When both ends run v0.5.17, they exchange advertisements over the authenticated control stream after the direct path is established. The effective value is the smaller of the two advertisements and the current path-derived ceiling, **lower only**, with a floor of 1280. It is hot-applied through netlink (userspace WireGuard uses `tun_event`) without rebuilding the interface or interrupting traffic. New results within a 5 minutes cooldown are recorded and the latest is applied when the cooldown expires; negotiation results and path switches both trigger recalculation. When the network is completely unreachable there is no path confirmation, so MTU is never lowered automatically.
+- **Direct listen-port range drift**: Adds `p2p.listen_port_range = "start-end"`, empty by default, which keeps the port fixed. When configured, a drift happens only after at least three consecutive direct-path failures lasting at least 60 seconds and one further failed retry. No drift occurs while a connection is stable, and there is no timed rotation. Drifts are at least 30 minutes apart and capped at five per 24 hours; the count is persisted in the journal and survives restart. Drift is disabled while a portmapper (UPnP/PCP) mapping is active, and the old port is kept for 120 seconds. The range must not overlap `listen_port`, a peer listen port, or the IPv6 `sync_port`. With `manage_firewall = true`, the fixed port and the whole range are allowed in one rule.
+- **Unilateral adjustment versus negotiation**: `p2p.mtu_adjust` still accepts only `suggest` (default), `auto`, and `off`. When the peer supports negotiation, the negotiated result takes precedence and unilateral adjustment steps aside; `off` turns off only unilateral adjustment, not negotiation. With no path confirmation on a completely unreachable network, unilateral `auto` also does not lower MTU automatically.
+- **Configuration contract**: Within one configuration file, `mtu` in the `site` section must equal `mtu` in the `peer` section; the default is 1420 when unset. The two machines may use different MTUs (for example 1420 and 1360), and after negotiation both interfaces use the smaller value.
+- **Observability**: `frp-tun status` adds `effective_mtu` (current effective value), `mtu_source` (`negotiated` or `config`), `mtu_advertise` (this side's advertisement), and `listen_port_drifts_24h` (successful drifts in the last 24 hours, not a switch). `ListenPort` in the `Peers` array and `LocalEndpoint` in `Supervisor` report the actual ports of the active session; when there is no active session, `ListenPort` falls back to the configured port.
+- **Interoperability**: Older peers silently ignore negotiation messages and this side falls back to the existing unilateral `mtu_adjust` behavior. When interoperating with fixed-mode or older peers, both ends must still explicitly configure the same available `ipv6.sync_port` in the `peer` section. Previously validated capabilities and conclusions from [v0.5.16](/en/releases/v0.5.16/) and earlier remain in effect.
+
+## Downloads
+
+The links below point to the official v0.5.17 GitHub Release on this site. SHA256 digests for all five architecture binaries are provided in the release `checksums.txt`; verify locally before deployment.
+
+| Architecture | File | Download |
+|---|---|---|
+| Linux amd64 | `frp-tun_v0.5.17_amd64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_amd64) |
+| Linux arm | `frp-tun_v0.5.17_arm` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_arm) |
+| Linux arm64 | `frp-tun_v0.5.17_arm64` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_arm64) |
+| Linux mips | `frp-tun_v0.5.17_mips-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_mips-softfloat) |
+| Linux mipsle | `frp-tun_v0.5.17_mipsle-softfloat` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/frp-tun_v0.5.17_mipsle-softfloat) |
+| Checksum manifest | `checksums.txt` | [Download](https://github.com/elkpi/frp-tun-page/releases/download/v0.5.17/checksums.txt) |
+
+## Verification
+
+Download the required assets into one directory and run `sha256sum -c checksums.txt`. If downloading only one architecture, compare its digest with the corresponding value below.
+
+```text
+668d54744a99c3ab57cffb88784b68086dde6dc77441ad4101e0c5770b3b4562  frp-tun_v0.5.17_amd64
+fc5cf79ba27640e2db8d66b6771bda0d7e1418402587d680267485405b1a949d  frp-tun_v0.5.17_arm
+de7fdbe2043ea81710934c03f9054888dc79202ee030fb1d69adeed861c4bcc1  frp-tun_v0.5.17_arm64
+5d094698833eee8f39b860c05977b9b97f7c7cc9f0883451c4a1f79289f6fc13  frp-tun_v0.5.17_mips-softfloat
+8252448531b2b23ec2b04f97d8d0e512dfba0531c49e6f2d6652d06eccfc8ce5  frp-tun_v0.5.17_mipsle-softfloat
+```
+
+## Validated scope
+
+- SHA256 digests for all five architecture binaries were downloaded and verified with `sha256sum -c checksums.txt`, matching the upstream Release asset digests. The manifest digest is `be5593a269f2f0c5f722a4a8889e9589d8ec3910f3414063394edb54dd3fa82f`.
+- Upstream CI passed race-enabled unit tests, loopback integration tests, and cross-builds for amd64, arm64, arm, mips, and mipsle.
+- Loopback testing with stock frps v0.71.0 verified traffic receipt after two-end 1360/1280 negotiation, plus auto direct paths, Hub promotion back, and multi-peer IPv6 forwarding. MTU cooldown/folding and port-drift triggering/limits are covered by unit and dual-engine loopback tests.
+- Resource targets are unchanged: 128MB RAM / 32MB Flash remains the support target. Devices with 64MB/16MB memory remain a stress-evaluation tier, not a supported claim.
+
+## Known limitations
+
+- Negotiation lowers MTU only and never raises it. With no path confirmation on a completely unreachable network, MTU is never lowered automatically. `off` disables only unilateral adjustment, not negotiation.
+- Port drift is triggered only by sustained direct-path failures; it never happens while a connection is stable. The old port is kept for 120 seconds, and established sessions are not migrated but converge naturally through path recovery. `listen_port_drifts_24h` is a count of successful drifts in 24 hours, not an enable switch.
+- Real-device port blocking, nonzero `SO_MARK` policy routing, and OpenWrt hardware are not verified. This release claims neither performance gains nor lower resource usage.
+- Cross-compiled assets are not a compatibility guarantee for specific hardware, sustained heavy load, nonzero `SO_MARK`, or complex NAT scenarios.
+- The software has no automatic updates or availability SLA; see the [EULA](https://github.com/elkpi/frp-tun-page/blob/main/EULA.md).
+
+## Upgrade
+
+During a maintenance window, back up the existing configuration and binary and prepare an independent rollback path. Download the binary for the target architecture and verify its digest, then stop the service, replace the binary, and restart. Run `frp-tun doctor` to check status. When an enabled journal exists, restart restores its committed configuration; use `frp-tun apply` to change configuration. To try two-end negotiation, upgrade both ends to v0.5.17; an older peer is silently ignored and this side falls back to unilateral `mtu_adjust`. Before configuring a drift range, make sure it does not overlap `listen_port`, a peer listen port, or the IPv6 `sync_port`. See [Upgrade & rollback](/en/operations/upgrade-rollback/) and the [Configuration reference](/en/configuration/full-reference/).
+
+## Rollback
+
+Stop the service, restore the backed-up binary, restart, and check status. Reverting the binary is not the same as reverting configuration; when interoperating with fixed-mode or older peers, both ends must explicitly configure the same available `sync_port`. Consult the target version's release notes and journal behavior first.
+
+## Withdrawal
+
+For serious security or stability issues, maintainers will mark the public Release as withdrawn and publish a notice according to [SECURITY.md](https://github.com/elkpi/frp-tun-page/blob/main/SECURITY.md).

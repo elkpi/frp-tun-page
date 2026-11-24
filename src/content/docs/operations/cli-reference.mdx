@@ -132,6 +132,15 @@ frp-tun status [--socket /var/run/frp-tun.sock]
 **输出内容**：
 - 以结构化 JSON 格式返回，包含：节点链路模式（P2P 直连 / STCP 中继）、各对端心跳延迟、WireGuard 接口收发字节数与网络丢包统计（所有敏感密钥信息在输出前均经自动脱敏处理）。在 v0.5.3+ 中，状态顶层及对端条目（Peers）额外透出当前建联角色 `DialRole`（`"dialer"` 或 `"acceptor"`），运行日志行输出带有 `, dial=` 标记便于全链路可观测性审计。
 
+**v0.5.17 MTU 与端口可观测字段**：
+
+- `effective_mtu`：当前生效的隧道 MTU；双端协商结果为两端通告与路径上限的较小者，只降不升，热更新不断流。
+- `mtu_source`：生效值来源，`negotiated`（协商生效）或 `config`（未协商时取配置值）。
+- `mtu_advertise`：本端当前向对端通告的 MTU 值。
+- `suggested_mtu`：单边路径探测给出的 MTU 建议（无建议时为 0）；对端支持双端协商时协商优先。
+- `listen_port_drifts_24h`：24 小时内已成功漂移的次数，只是计数而不是开关；未配置 `p2p.listen_port_range` 时为 0。
+- `Peers` 数组中的 `ListenPort` 与 `Supervisor` 的 `LocalEndpoint`：都是活动会话的实际端口（漂移后为新值）；无活动会话时 `ListenPort` 回退到配置端口。
+
 ---
 
 ### 2.7 doctor（双模运行环境与在线链路全景巡检）

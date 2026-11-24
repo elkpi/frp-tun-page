@@ -157,3 +157,95 @@ key = "REPLACE_WITH_RELAY_KEY"
 ```
 
 When interoperating with fixed `wg-quic` mode or older versions, the `peer.ipv6.sync_port` default has changed from a fixed 51830 to a per-site-pair derivation. Both ends must explicitly configure the same available port; otherwise dynamic-prefix synchronization will not work (static subnets are unaffected).
+
+---
+
+## Scenario C: two-end MTU negotiation and optional direct port drift (v0.5.17)
+
+When both ends run v0.5.17, the direct path negotiates the tunnel MTU after it is established. Within one configuration file, `mtu` in the `site` and `peer` sections must be equal; the two machines may use different values. Below, site A is configured with 1420 and site B with 1360, so both interfaces use 1360 after negotiation. The default is 1420 when unset.
+
+```toml
+# Site A (site-a.toml)
+schema_version = 1
+
+[site]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+mtu = 1420
+
+[peer]
+id = "site-b"
+networks = ["198.51.200.0/24"]
+tunnel_address = "198.51.100.2/32"
+role = "visitor"
+allow_relay = true
+mtu = 1420
+public_key = "REPLACE_WITH_SITE_B_PUBLIC_KEY"
+
+[frp]
+server_addr = "relay.example.com"
+server_port = 7000
+token = "REPLACE_WITH_FRP_TOKEN"
+shared_secret = "REPLACE_WITH_SHARED_SECRET"
+tls = true
+
+[wireguard]
+mode = "auto"
+private_key = "REPLACE_WITH_SITE_A_PRIVATE_KEY"
+
+[forwarding]
+authorize_enable = true
+mode = "nftables"
+
+[p2p]
+# Optional: empty by default keeps the port fixed. Drift happens only after at least three consecutive
+# direct failures lasting at least 60 seconds and one further failed retry; never while the connection is
+# stable; at least 30 minutes apart, at most five per 24 hours; disabled while a portmapper is active;
+# the old port is kept for 120 seconds.
+listen_port_range = "53000-53999"
+```
+
+```toml
+# Site B (site-b.toml)
+schema_version = 1
+
+[site]
+id = "site-b"
+networks = ["198.51.200.0/24"]
+tunnel_address = "198.51.100.2/32"
+role = "visitor"
+allow_relay = true
+mtu = 1360
+
+[peer]
+id = "site-a"
+networks = ["198.51.100.0/24"]
+tunnel_address = "198.51.100.1/32"
+role = "proxy"
+allow_relay = true
+mtu = 1360
+public_key = "REPLACE_WITH_SITE_A_PUBLIC_KEY"
+
+[frp]
+server_addr = "relay.example.com"
+server_port = 7000
+token = "REPLACE_WITH_FRP_TOKEN"
+shared_secret = "REPLACE_WITH_SHARED_SECRET"
+tls = true
+
+[wireguard]
+mode = "auto"
+private_key = "REPLACE_WITH_SITE_B_PRIVATE_KEY"
+
+[forwarding]
+authorize_enable = true
+mode = "nftables"
+
+[p2p]
+# The drift range is optional; this side keeps the default fixed port.
+```
+
+`p2p.mtu_adjust` still accepts only `suggest` (default), `auto`, and `off`: negotiation takes precedence when the peer supports it, and `off` disables only unilateral adjustment. Negotiation lowers MTU only with a 5-minute cooldown and hot-applies the interface without interrupting traffic; with no path confirmation on a completely unreachable network, MTU is never lowered automatically. `listen_port_range` must not overlap `listen_port`, a peer listen port, or the IPv6 `sync_port`; with `manage_firewall = true`, the fixed port and the whole range are allowed in one rule. `frp-tun status` reports `listen_port_drifts_24h`, which is only the number of successful drifts in 24 hours, not a switch.

@@ -108,6 +108,15 @@ frp-tun run [-c /path/to/config.toml] [--socket /var/run/frp-tun.sock]
 
 Connects to the control socket of a running instance and retrieves real-time operating metrics in structured JSON format (carrier transport mode, peer round-trip latencies, interface counters, and packet loss stats). In v0.5.3+, the status payload and peer entries expose the active `DialRole` (`"dialer"` or `"acceptor"`), and runtime logs include a `, dial=` tag for end-to-end link observability.
 
+**v0.5.17 MTU and port observability fields**:
+
+- `effective_mtu`: the currently effective tunnel MTU. A negotiated result is the smaller of both advertisements and the path ceiling, lower only, and hot-applied without interruption.
+- `mtu_source`: source of the effective value, `negotiated` (negotiation applied) or `config` (config value when there is no negotiation).
+- `mtu_advertise`: the MTU value this side currently advertises to peers.
+- `suggested_mtu`: the MTU suggested by unilateral path probing (0 when there is none); negotiation takes precedence when the peer supports it.
+- `listen_port_drifts_24h`: the number of successful drifts in the last 24 hours, a count rather than a switch; 0 when `p2p.listen_port_range` is not configured.
+- `ListenPort` in the `Peers` array and `LocalEndpoint` in `Supervisor`: both report the actual port of the active session (the new port after a drift). When there is no active session, `ListenPort` falls back to the configured port.
+
 ```bash
 frp-tun status [--socket /var/run/frp-tun.sock]
 ```

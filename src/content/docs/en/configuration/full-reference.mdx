@@ -4,7 +4,7 @@ description: Complete frp-tun parameter dictionary, default values, and producti
 version: preview
 ---
 
-> **Applicable version: technical preview (field dictionary aligned with v0.5.16).** Production security best practice: restrict configuration file permissions to `0600` (`chmod 600 config.toml`) to prevent unauthorized local users from reading cryptographic credentials.
+> **Applicable version: technical preview (field dictionary aligned with v0.5.17).** Production security best practice: restrict configuration file permissions to `0600` (`chmod 600 config.toml`) to prevent unauthorized local users from reading cryptographic credentials.
 
 `frp-tun` utilizes standard TOML syntax. The full parameter dictionary and sanitized production template are documented below:
 
@@ -20,7 +20,7 @@ networks = ["198.51.100.0/24"]        # Local LAN subnets (CIDR list advertised 
 tunnel_address = "198.51.100.1/32"    # Local WireGuard point-to-point virtual tunnel IPv4 address (Required)
 role = "proxy"                        # Role: "proxy" (passive listener) or "visitor" (active dialer)
 allow_relay = true                    # Allow fallback to STCP relay when direct P2P fails (default: true)
-mtu = 1420                            # WireGuard MTU (default: 1420, valid range 576~9000, must match across all peers)
+mtu = 1420                            # WireGuard MTU (default: 1420, range 576~9000; must equal mtu in the peer section of one config, the two machines may differ and negotiate down)
 # data_plane = "auto"                 # Data plane: "wg-quic" (default), "tun-quic" (single-peer direct), or "auto" (direct/private Hub/STCP automatic switching)
 # hub_unencrypted = false             # Applies only to auto/tun-quic, default false; when both ends enable it, private Hubs carry IP without WireGuard
 
@@ -44,7 +44,7 @@ networks = ["198.51.200.0/24"]        # Remote LAN subnets (Routes will be insta
 tunnel_address = "198.51.100.2/32"    # Peer WireGuard virtual tunnel IPv4 address (Required)
 role = "visitor"                      # Peer role: must be complementary ("proxy" vs "visitor")
 allow_relay = true                    # Allow peer to fall back to relay (default: true)
-mtu = 1420                            # Peer MTU (valid range 576~9000, must match local MTU)
+mtu = 1420                            # Peer MTU (range 576~9000; must equal mtu in the site section of one config, the two machines may use different MTUs)
 public_key = "REPLACE_WITH_PEER_PUBLIC_KEY" # Peer static WireGuard public key (Base64)
 # listen_port = 51822                 # Optional: peer public UDP listen port (defaults to p2p.listen_port + peer index, must be unique across peers)
 # shared_secret = "REPLACE_WITH_PEER_SHARED_SECRET" # Optional: dedicated P2P pre-shared secret for this peer (falls back to frp.shared_secret)
@@ -108,6 +108,9 @@ mode = "nftables"                     # Firewall manager: "nftables" (default, a
 [p2p]
 prefer_family = "ipv4"                # Direct connection preference: "ipv4" (default) or "ipv6"
 listen_port = 51821                   # Fixed public UDP listening port (default: 51821)
+# listen_port_range = "53000-53999"    # Optional direct-port drift range (empty by default, port stays fixed; drifts only after sustained direct failures, never while stable)
+                                      # At least 30 minutes between drifts, at most five per 24 hours, count persisted in journal; disabled while a portmapper is active, old port kept 120 seconds
+                                      # Must not overlap listen_port, peer listen ports, or IPv6 sync_port; manage_firewall=true allows the whole range in one rule
 manage_firewall = false               # Authorize daemon to open external firewall port
 data_transport = "auto"               # Direct-channel data plane: "auto" (default, QUIC Datagram, negotiates transparently with legacy Stream peers) or "stream" (force Stream, compatible with v0.4.2)
 nathole_coordinator = "frp"           # Preferred NAT hole-punching coordinator: "frp" (default, frps-signaled) or "native" (local QUIC engine); the other mechanism is automatically used as fallback stage
@@ -123,7 +126,7 @@ port_mapping = true                   # Automatic gateway port-mapping discovery
 quic_keepalive_period = "10s"         # P2P QUIC keep-alive period (default 10s, valid range [0s,10m]; explicit "0s" disables it; legacy key keepalive_period is still accepted)
 accept_grace_after_failed_punch = "6s" # Grace period to accept late peer dial-ins after a fully missed punch (default 6s, valid range (0s,60s]; legacy key accept_grace is still accepted)
 family_standby = false                # Enable dual-stack warm standby channel
-mtu_adjust = "suggest"                # Tunnel MTU policy (since v0.5.7): "suggest" (default, record only), "auto" (controlled apply after a stable deviation), "off" (do not observe). See the notes below
+mtu_adjust = "suggest"                # Unilateral tunnel MTU policy (since v0.5.7): "suggest" (default, record only), "auto" (controlled apply after a stable deviation), "off" (do not observe); negotiation takes precedence when the peer supports it, off only disables unilateral adjustment
 
 # Optional: Multi-Path QoS Probing
 [p2p.qos]
@@ -172,6 +175,9 @@ disable_print_color = false          # Disable console color (default false; app
   - `auto`: uses the same controlled commit as a manual `frp-tun apply` (journal, rollback on failure, and rebuild). Automatic changes are at least 30 minutes apart, and that cooldown survives a session change. It changes the running configuration and the journal. When an enabled journal already exists, restart restores that commit, not the old `mtu` still written in the file.
   - `off`: no observation and no action.
   - A session or path change clears an unfinished 10-minute window and the `suggest` duplicate filter. The new path must be observed for a fresh 10 minutes.
+  - Since v0.5.17, when both peers support two-end MTU negotiation, the negotiated result takes precedence over unilateral adjustment; `off` disables only unilateral observation, not negotiation.
+- **Two-end MTU negotiation (v0.5.17)**: after a direct path is established, the two ends exchange advertisements over the authenticated control stream. The effective MTU is the smaller of both advertisements and the current path-derived ceiling, lower only, with a floor of 1280; it is hot-applied without rebuilding the interface or interrupting traffic. New results within a 5-minute cooldown are recorded and the latest is applied when the cooldown expires. Within one config file, `mtu` in `site` and `peer` sections must match; the two machines may differ (for example 1420 and 1360), and both interfaces then use the smaller value. With no path confirmation on a completely unreachable network, MTU is never lowered automatically. `status` exposes `effective_mtu`, `mtu_source` (`negotiated` or `config`), `mtu_advertise`, and `suggested_mtu`.
+- **Direct port drift range (v0.5.17)**: `p2p.listen_port_range` is empty by default, which keeps the port fixed. When configured, a drift happens only after at least three consecutive direct failures lasting at least 60 seconds and one further failed retry; it never drifts while a connection is stable. Drifts are at least 30 minutes apart and capped at five per 24 hours, with the count persisted in the journal across restarts; drift is disabled while a portmapper is active, and the old port is kept for 120 seconds. The range must not overlap `listen_port`, a peer listen port, or the IPv6 `sync_port`. With `manage_firewall = true`, the whole range is allowed in one rule. `status` exposes `listen_port_drifts_24h`, which is only the number of successful drifts in 24 hours, not a switch.
 - **Console color**: `log.disable_print_color` defaults to `false`. Set it to `true` to turn off console color. It matters only when the log destination is `console`; logs written to a file are not colored.
 
 ## Built-in STUN Targets & Outbound Disclosure
